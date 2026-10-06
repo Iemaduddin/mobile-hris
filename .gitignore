@@ -20,6 +20,7 @@ expo-env.d.ts
 
 # Metro
 .metro-health-check*
+metro.log
 
 # debug
 npm-debug.*
@@ -30,7 +31,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (berisi konfigurasi rahasia — jangan di-commit)
+.env
 .env*.local
 
 # typescript
@@ -41,3 +43,6 @@ example
 # generated native folders
 /ios
 /android
+
+google-services.json
+PRD.md

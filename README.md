@@ -1,56 +1,70 @@
-# Welcome to your Expo app 👋
+# HRIS Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplikasi mobile HRIS (Android/iOS) dengan Expo Router. Backend-nya repo `hris`.
 
-## Get started
+## Tech stack
 
-1. Install dependencies
+- Expo SDK 57 + expo-router (file-based routing di `src/app/`)
+- TanStack Query (data fetching) + Zustand (state sesi)
+- expo-secure-store (token & device id), expo-location, expo-notifications (push + deep link)
 
-   ```bash
-   npm install
-   ```
+## Fitur
 
-2. Start the app
+- Login + sesi tersimpan aman
+- Tabs: Beranda, Presensi, Pengajuan, Lainnya — plus Jadwal & Profil
+- **Presensi GPS**: check-in/out dalam radius kantor + riwayat per hari
+- **Pengajuan**: buat cuti/dinas/lembur + lampiran foto, detail + timeline status
+- **Slip gaji**: daftar & detail per nomor slip
+- **Push notification**: notifikasi saat pengajuan disetujui/ditolak, tap → langsung ke detail pengajuan (warm & cold start)
 
-   ```bash
-   npx expo start
-   ```
+## Prasyarat
 
-In the output, you'll find options to open the app in a
+- Node.js 22, backend `hris` sedang berjalan
+- Emulator Android (via Android Studio) atau HP fisik satu Wi-Fi dengan PC
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Konfigurasi (`.env`, tidak di-commit)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```env
+EXPO_PUBLIC_API_URL=http://192.168.100.16:3000
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+> Wajib **IP LAN PC**, bukan `localhost` (di HP, `localhost` = HP itu sendiri).
+> Cek IP: `ipconfig`. Samakan port dengan backend. Edit `.env` → restart Expo.
 
-### Other setup steps
+`google-services.json` (FCM, Android) juga tidak di-commit — minta ke maintainer,
+taruh di root proyek. Kredensial push FCM V1 sudah terpasang di proyek EAS.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Cara menjalankan
 
-## Learn more
+```powershell
+npm install
+npx expo start --port 8081
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+- Tekan `a` → emulator, atau scan QR dari HP (Expo Go / dev build).
+- Butuh **development build** (modul native): `npx expo run:android`.
+  Kalau Metro baru dinyalakan: `adb reverse tcp:8081 tcp:8081` untuk emulator.
+- Ganti port bila bentrok: `npx expo start --port 8082`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Backend default di port `3000`, Metro di `8081` — sudah beda, tidak bentrok.
 
-## Join the community
+Akun demo (dibuat dari seed backend): `employee@example.com` dan `admin@example.com`.
 
-Join our community of developers creating universal apps.
+## Skrip
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+| Perintah | Kegunaan |
+|---|---|
+| `npx expo start` | dev server + Metro |
+| `npx expo run:android` / `run:ios` | build & pasang dev client |
+| `npx expo lint` | lint (wajib lolos sebelum selesai) |
+| `npx tsc --noEmit` | typecheck (wajib lolos sebelum selesai) |
+| `npx expo-doctor` | diagnosis dependensi |
+
+## Build rilis (EAS)
+
+```bash
+npx eas-cli@latest build --profile development   # dev build
+npx eas-cli@latest build --profile production    # rilis
+```
+
+Project ID EAS terdaftar di `app.json` (`extra.eas.projectId`).

@@ -46,9 +46,10 @@ const KELOMPOK_LABEL: Record<string, string> = {
 	TUNJANGAN: "Tunjangan",
 	POTONGAN: "Potongan",
 	IURAN: "Iuran (karyawan)",
+	BIAYA_PERUSAHAAN: "Ditanggung perusahaan",
 };
 
-const URUTAN_KELOMPOK = ["PENDAPATAN", "TUNJANGAN", "POTONGAN", "IURAN"];
+const URUTAN_KELOMPOK = ["PENDAPATAN", "TUNJANGAN", "POTONGAN", "IURAN", "BIAYA_PERUSAHAAN"];
 
 /** "2026-09" -> "September 2026". */
 export function labelPeriode(periode: string): string {

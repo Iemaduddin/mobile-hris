@@ -3,6 +3,12 @@
     "name": "HRIS",
     "slug": "hris",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3c0d46a5-74cc-4154-9f7a-3e7b6c075d3b"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hrismobile",

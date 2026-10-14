@@ -25,6 +25,9 @@ import { RequestCard, type KartuPengajuan } from "./request-card";
 
 const TAHUN = new Date().getFullYear();
 
+const BATAS_AWAL = 20;
+const TAMBAH_BATAS = 20;
+
 function keKartuCuti(x: PengajuanCuti): KartuPengajuan {
 	return {
 		id: x.id,
@@ -67,11 +70,22 @@ function keKartuDinas(x: PengajuanDinas): KartuPengajuan {
 export function RequestsScreen() {
 	const [jenis, setJenis] = useState<JenisPengajuan>("cuti");
 	const [status, setStatus] = useState("");
+	const [batas, setBatas] = useState(BATAS_AWAL);
 
 	const saldo = useSaldoCuti(TAHUN);
 	const cutiQ = useCutiList(status);
 	const lemburQ = useLemburList(status);
 	const dinasQ = useDinasList(status);
+
+	function pilihJenis(j: JenisPengajuan) {
+		setJenis(j);
+		setBatas(BATAS_AWAL);
+	}
+
+	function pilihStatus(s: string) {
+		setStatus(s);
+		setBatas(BATAS_AWAL);
+	}
 
 	const aktif = jenis === "cuti" ? cutiQ : jenis === "lembur" ? lemburQ : dinasQ;
 
@@ -86,10 +100,13 @@ export function RequestsScreen() {
 				? (lemburQ.data ?? []).map(keKartuLembur)
 				: (dinasQ.data ?? []).map(keKartuDinas);
 
+	const kartuTampil = kartu.slice(0, batas);
+	const sisa = kartu.length - kartuTampil.length;
+
 	return (
 		<SafeAreaView style={styles.safe} edges={["top"]}>
 			<FlatList
-				data={kartu}
+				data={kartuTampil}
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={styles.content}
 				refreshControl={
@@ -107,7 +124,7 @@ export function RequestsScreen() {
 							{daftarJenisPengajuan.map((j) => (
 								<Pressable
 									key={j}
-									onPress={() => setJenis(j)}
+									onPress={() => pilihJenis(j)}
 									accessibilityRole="tab"
 									accessibilityState={{ selected: jenis === j }}
 									style={[styles.seg, jenis === j ? styles.segActive : null]}
@@ -126,7 +143,7 @@ export function RequestsScreen() {
 							{FILTER_STATUS.map((f) => (
 								<Pressable
 									key={f.value}
-									onPress={() => setStatus(f.value)}
+									onPress={() => pilihStatus(f.value)}
 									accessibilityRole="button"
 									style={[styles.chip, status === f.value ? styles.chipActive : null]}
 								>
@@ -156,6 +173,17 @@ export function RequestsScreen() {
 					/>
 				)}
 				ItemSeparatorComponent={() => <View style={styles.gap} />}
+				ListFooterComponent={
+					sisa > 0 ? (
+						<View style={styles.muatLagi}>
+							<AppButton
+								label={`Muat lagi (${sisa} tersisa)`}
+								variant="outline"
+								onPress={() => setBatas((b) => b + TAMBAH_BATAS)}
+							/>
+						</View>
+					) : null
+				}
 			/>
 			<View style={styles.footer}>
 				<AppButton
@@ -237,6 +265,7 @@ const styles = StyleSheet.create({
 	chipTextActive: { color: colors.textInverse },
 
 	gap: { height: spacing.sm },
+	muatLagi: { paddingVertical: spacing.sm },
 	footer: {
 		paddingHorizontal: spacing.xl,
 		paddingTop: spacing.sm,

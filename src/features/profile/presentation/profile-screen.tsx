@@ -1,8 +1,11 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { formatTanggalPanjang } from "@/core/util/format";
 import { ScreenHeader } from "@/core/widgets/screen-header";
-import { ErrorView, LoadingView } from "@/core/widgets/states";
+import { AvatarFoto } from "@/core/widgets/avatar-foto";
+import { ErrorView } from "@/core/widgets/states";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { StatusChip } from "@/core/widgets/status-chip";
 import {
 	inisial,
 	labelGender,
@@ -21,7 +24,13 @@ type Baris = { label: string; nilai: string | null };
 export function ProfileScreen() {
 	const profil = useProfil();
 
-	if (profil.isPending) return <LoadingView label="Memuat profil..." />;
+	if (profil.isPending)
+		return (
+			<View style={styles.wrap}>
+				<ScreenHeader title="Profil Saya" subtitle="Memuat…" />
+				<SkeletonLayar jumlah={3} judul={false} />
+			</View>
+		);
 	if (profil.isError || !profil.data)
 		return (
 			<View style={styles.wrap}>
@@ -33,7 +42,16 @@ export function ProfileScreen() {
 	return (
 		<View style={styles.wrap}>
 			<ScreenHeader title="Profil Saya" />
-			<ScrollView contentContainerStyle={styles.content}>
+			<ScrollView
+				contentContainerStyle={styles.content}
+				refreshControl={
+					<RefreshControl
+						refreshing={profil.isFetching}
+						onRefresh={() => void profil.refetch()}
+						tintColor={colors.primary}
+					/>
+				}
+			>
 				<Kepala profil={profil.data} />
 
 				<Bagian judul="Identitas">
@@ -67,14 +85,13 @@ export function ProfileScreen() {
 function Kepala({ profil }: { profil: Profil }) {
 	return (
 		<View style={styles.kepala}>
-			<View style={styles.avatar}>
-				<Text style={styles.avatarText}>{inisial(profil.namaLengkap)}</Text>
-			</View>
+			<AvatarFoto nama={profil.namaLengkap} inisial={inisial(profil.namaLengkap)} fotoPath={profil.fotoUrl} ukuran={72} />
 			<Text style={styles.nama}>{profil.namaLengkap}</Text>
 			<Text style={styles.nomor}>{profil.nomorKaryawan}</Text>
-			<View style={styles.badge}>
-				<Text style={styles.badgeText}>{profil.status}</Text>
-			</View>
+			<StatusChip
+				label={profil.status.replace(/_/g, " ")}
+				tone={profil.status === "AKTIF" ? "success" : profil.status === "PROBASI" ? "info" : "muted"}
+			/>
 		</View>
 	);
 }
@@ -165,28 +182,8 @@ const styles = StyleSheet.create({
 	content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
 
 	kepala: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-	avatar: {
-		width: 72,
-		height: 72,
-		borderRadius: radius.full,
-		backgroundColor: colors.primaryLight,
-		borderWidth: 1,
-		borderColor: colors.primary,
-		alignItems: "center",
-		justifyContent: "center",
-		marginBottom: spacing.xs,
-	},
-	avatarText: { fontSize: fontSize.xl, fontWeight: "800", color: colors.primaryDark },
 	nama: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text, textAlign: "center" },
 	nomor: { fontSize: fontSize.sm, color: colors.textMuted },
-	badge: {
-		marginTop: spacing.xs,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.xs,
-		borderRadius: radius.full,
-		backgroundColor: colors.successLight,
-	},
-	badgeText: { fontSize: fontSize.xs, fontWeight: "700", color: colors.success },
 
 	bagian: { gap: spacing.xs },
 	bagianJudul: {

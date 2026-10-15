@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
+import { StatusChip, type ChipTone } from "@/core/widgets";
 import {
 	labelStatusPengajuan,
 	toneStatusPengajuan,
 	type JenisPengajuan,
-	type TonePengajuan,
 } from "../models/request";
 
 export type KartuPengajuan = {
@@ -17,13 +17,6 @@ export type KartuPengajuan = {
 	keterangan?: string;
 };
 
-const BADGE: Record<TonePengajuan, { box: ViewStyle; text: TextStyle }> = {
-	info: { box: { backgroundColor: colors.primaryLight, borderColor: colors.primary }, text: { color: colors.primaryDark } },
-	success: { box: { backgroundColor: colors.successLight, borderColor: colors.success }, text: { color: colors.success } },
-	warning: { box: { backgroundColor: colors.warningLight, borderColor: colors.warning }, text: { color: colors.warning } },
-	danger: { box: { backgroundColor: colors.dangerLight, borderColor: colors.danger }, text: { color: colors.danger } },
-};
-
 /** Satu baris daftar pengajuan (cuti/lembur/dinas) — PRD mobile Bag. 5.4. */
 export function RequestCard({
 	data,
@@ -32,8 +25,7 @@ export function RequestCard({
 	data: KartuPengajuan;
 	onPress?: () => void;
 }) {
-	const tone = toneStatusPengajuan(data.status);
-	const badge = BADGE[tone];
+	const tone: ChipTone = toneStatusPengajuan(data.status);
 
 	return (
 		<Pressable
@@ -47,11 +39,7 @@ export function RequestCard({
 				<Text style={styles.judul} numberOfLines={1}>
 					{data.judul}
 				</Text>
-				<View style={[styles.badge, badge.box]}>
-					<Text style={[styles.badgeText, badge.text]}>
-						{labelStatusPengajuan(data.status)}
-					</Text>
-				</View>
+				<StatusChip label={labelStatusPengajuan(data.status)} tone={tone} />
 			</View>
 
 			{data.nomor ? (
@@ -83,14 +71,6 @@ const styles = StyleSheet.create({
 	pressed: { backgroundColor: colors.backgroundAlt },
 	head: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 	judul: { flex: 1, fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-	badge: {
-		minHeight: 24,
-		justifyContent: "center",
-		paddingHorizontal: spacing.sm,
-		borderRadius: radius.full,
-		borderWidth: 1,
-	},
-	badgeText: { fontSize: fontSize.xs, fontWeight: "700" },
 	nomor: { fontSize: fontSize.xs, color: colors.textMuted },
 	rentang: { fontSize: fontSize.sm, color: colors.text },
 	keterangan: { fontSize: fontSize.xs, color: colors.textMuted },

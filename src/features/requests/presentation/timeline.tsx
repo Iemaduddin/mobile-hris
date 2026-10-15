@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
+import { StatusChip, type ChipTone } from "@/core/widgets/status-chip";
 import { formatTanggalPanjang } from "@/core/util/format";
 import type { TahapApproval } from "../data/requests-api";
 
@@ -100,10 +101,10 @@ function labelStatusStep(status: string): string {
 	return "Menunggu";
 }
 
-function toneStatusStep(status: string): string {
-	if (status === "DISETUJUI") return colors.success;
-	if (status === "DITOLAK") return colors.danger;
-	return colors.warning;
+function toneStatusStep(status: string): ChipTone {
+	if (status === "DISETUJUI") return "success";
+	if (status === "DITOLAK") return "danger";
+	return "warning";
 }
 
 /** Rincian tiap tahap approval (siapa memutuskan & kapan). */
@@ -119,9 +120,7 @@ export function ApprovalSteps({ items }: { items: TahapApproval[] }) {
 						<Text style={styles.stepWho} numberOfLines={1}>
 							Tahap {s.tahap} · {s.approverNama ?? labelRole(s.approverRole)}
 						</Text>
-						<Text style={[styles.stepStatus, { color: toneStatusStep(s.status) }]}>
-							{labelStatusStep(s.status)}
-						</Text>
+						<StatusChip label={labelStatusStep(s.status)} tone={toneStatusStep(s.status)} />
 					</View>
 					{s.diprosesPada ? (
 						<Text style={styles.stepMeta}>{formatTanggalPanjang(s.diprosesPada)}</Text>
@@ -170,7 +169,6 @@ const styles = StyleSheet.create({
 	},
 	stepHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 	stepWho: { flex: 1, fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
-	stepStatus: { fontSize: fontSize.xs, fontWeight: "700" },
 	stepMeta: { fontSize: fontSize.xs, color: colors.textMuted },
 	stepCatatan: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic" },
 });

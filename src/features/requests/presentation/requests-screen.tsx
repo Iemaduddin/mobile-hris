@@ -5,7 +5,8 @@ import { router } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { formatTanggal } from "@/core/util/format";
 import { AppButton } from "@/core/widgets/app-button";
-import { EmptyView, ErrorView, LoadingView } from "@/core/widgets/states";
+import { EmptyView, ErrorView } from "@/core/widgets/states";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
 import {
 	useCutiList,
 	useDinasList,
@@ -89,7 +90,12 @@ export function RequestsScreen() {
 
 	const aktif = jenis === "cuti" ? cutiQ : jenis === "lembur" ? lemburQ : dinasQ;
 
-	if (aktif.isPending) return <LoadingView label="Memuat pengajuan..." />;
+	if (aktif.isPending)
+		return (
+			<SafeAreaView style={styles.safe} edges={["top"]}>
+				<SkeletonLayar jumlah={5} />
+			</SafeAreaView>
+		);
 	if (aktif.isError && aktif.data === undefined)
 		return <ErrorView message="Gagal memuat daftar pengajuan." onRetry={() => void aktif.refetch()} />;
 

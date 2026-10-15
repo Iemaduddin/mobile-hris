@@ -3,9 +3,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { formatJam, formatTanggalPanjang, labelStatusRekap } from "@/core/util/format";
+import { formatJam, formatTanggal, labelStatusRekap, toneStatusRekap } from "@/core/util/format";
 import { AppButton } from "@/core/widgets/app-button";
+import { AvatarFoto } from "@/core/widgets/avatar-foto";
+import { Skeleton } from "@/core/widgets/skeleton";
+import { StatusChip } from "@/core/widgets/status-chip";
 import { labelPenempatan } from "@/features/auth/models/session";
+import { labelStatusPengajuan, toneStatusPengajuan } from "@/features/requests/models/request";
+import { inisial } from "@/features/profile/models/profile";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
 import { useStatusHariIni } from "@/features/attendance/providers/attendance-queries";
 import {
@@ -73,23 +78,53 @@ export function HomeScreen() {
 					/>
 				}
 			>
-				<View style={styles.sapaan}>
-					<Text style={styles.halo}>Halo,</Text>
-					<Text style={styles.nama}>{karyawan?.namaLengkap ?? user?.name ?? "-"}</Text>
-					<Text style={styles.tanggal}>{formatTanggalPanjang(new Date())}</Text>
-					{penempatan ? <Text style={styles.penempatan}>{penempatan}</Text> : null}
+			<View style={styles.hero}>
+				<Pressable
+					onPress={() => router.push("/profile")}
+					accessibilityRole="button"
+					accessibilityLabel="Buka profil saya"
+				>
+					<AvatarFoto
+						nama={karyawan?.namaLengkap ?? user?.name ?? "-"}
+						inisial={inisial(karyawan?.namaLengkap ?? user?.name ?? "-")}
+						fotoPath={karyawan?.fotoUrl}
+						ukuran={76}
+					/>
+				</Pressable>
+				<View style={styles.heroText}>
+					<Text style={styles.nama} numberOfLines={1}>
+						{karyawan?.namaLengkap ?? user?.name ?? "-"}
+					</Text>
+					<View style={styles.metaRow}>
+						<Ionicons name="calendar-outline" size={13} color={colors.primaryDark} />
+						<Text style={styles.tanggal}>{formatTanggal(new Date())}</Text>
+					</View>
+					{penempatan ? (
+						<View style={styles.metaRow}>
+							<Ionicons name="briefcase-outline" size={13} color={colors.primaryDark} />
+							<Text style={styles.penempatan} numberOfLines={1}>
+								{penempatan}
+							</Text>
+						</View>
+					) : null}
 				</View>
+			</View>
 
 				<Kartu judul="Presensi hari ini" tekan={() => router.push("/attendance")}>
 					{status ? (
 						<>
-							<Text style={styles.statusPresensi}>{labelStatusRekap(status)}</Text>
+							<StatusChip label={labelStatusRekap(status)} tone={toneStatusRekap(status)} />
 							<Text style={styles.jam}>
 								{masuk ? formatJam(masuk) : "--:--"} – {keluar ? formatJam(keluar) : "--:--"}
 							</Text>
 						</>
+					) : presensi.isPending ? (
+						<>
+							<Skeleton lebar="40%" tinggi={20} />
+							<Skeleton lebar="60%" />
+						</>
 					) : (
-						<Text style={styles.jam}>Memuat status...</Text>
+						<Text style={styles.jam}>Status belum tersedia.</Text>
 					)}
 				</Kartu>
 
@@ -101,6 +136,11 @@ export function HomeScreen() {
 								<Text style={styles.barisNilai}>{s.saldoAkhir} hari</Text>
 							</View>
 						))
+					) : saldo.isPending ? (
+						<>
+							<Skeleton lebar="80%" />
+							<Skeleton lebar="65%" />
+						</>
 					) : (
 						<Text style={styles.jam}>Belum ada saldo cuti.</Text>
 					)}
@@ -112,7 +152,13 @@ export function HomeScreen() {
 					tekan={() => router.push("/requests")}
 				>
 					{berjalan.length > 0 ? (
-						<Text style={styles.jam}>{berjalan[0].status.replace(/_/g, " ")} terakhir</Text>
+						<View style={styles.chipRow}>
+							<StatusChip
+								label={labelStatusPengajuan(berjalan[0].status)}
+								tone={toneStatusPengajuan(berjalan[0].status)}
+							/>
+							<Text style={styles.jam}>terakhir</Text>
+						</View>
 					) : (
 						<Text style={styles.jam}>Tidak ada pengajuan berjalan.</Text>
 					)}
@@ -125,6 +171,8 @@ export function HomeScreen() {
 				>
 					{slipTerakhir ? (
 						<Text style={styles.slipNilai}>{formatRupiah(slipTerakhir.gajiBersih)}</Text>
+					) : slip.isPending ? (
+						<Skeleton lebar="50%" tinggi={22} />
 					) : (
 						<Text style={styles.jam}>Belum ada slip gaji terbit.</Text>
 					)}
@@ -199,10 +247,23 @@ const styles = StyleSheet.create({
 	content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
 
 	sapaan: { gap: 2, marginBottom: spacing.sm },
+	hero: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.md,
+		backgroundColor: colors.primaryLight,
+		borderRadius: radius.lg,
+		borderWidth: 1,
+		borderColor: colors.primary,
+		padding: spacing.lg,
+		marginBottom: spacing.sm,
+	},
+	heroText: { flex: 1, gap: 2 },
 	halo: { fontSize: fontSize.sm, color: colors.textMuted },
 	nama: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
-	tanggal: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.xs },
-	penempatan: { fontSize: fontSize.xs, color: colors.textMuted },
+	metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 2 },
+	tanggal: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "600" },
+	penempatan: { flex: 1, fontSize: fontSize.xs, color: colors.primaryDark },
 
 	kartu: {
 		backgroundColor: colors.surface,
@@ -218,7 +279,7 @@ const styles = StyleSheet.create({
 	kartuSub: { fontSize: fontSize.xs, color: colors.textMuted },
 	kartuAksi: { fontSize: fontSize.xs, color: colors.primary, fontWeight: "600" },
 
-	statusPresensi: { fontSize: fontSize.lg, fontWeight: "800", color: colors.success },
+	chipRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 	jam: { fontSize: fontSize.sm, color: colors.textMuted },
 	slipNilai: { fontSize: fontSize.lg, fontWeight: "700", color: colors.success },
 
@@ -241,3 +302,4 @@ const styles = StyleSheet.create({
 	},
 	aksiLabel: { fontSize: fontSize.xs, color: colors.text, fontWeight: "600" },
 });
+

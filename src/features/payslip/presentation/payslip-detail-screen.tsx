@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { ScreenHeader } from "@/core/widgets/screen-header";
-import { ErrorView, LoadingView } from "@/core/widgets/states";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ErrorView } from "@/core/widgets/states";
 import { formatRupiah, kelompokRincian, labelPeriode } from "../models/payslip";
 import { useSlipDetail } from "../providers/payslip-queries";
 
@@ -14,7 +15,13 @@ type Baris = { label: string; nilai: string; tebal?: boolean };
 export function PayslipDetailScreen({ nomor }: { nomor: string }) {
 	const slip = useSlipDetail(nomor);
 
-	if (slip.isPending) return <LoadingView label="Memuat rincian slip..." />;
+	if (slip.isPending)
+		return (
+			<View style={styles.wrap}>
+				<ScreenHeader title="Slip Gaji" subtitle="Memuat…" />
+				<SkeletonLayar jumlah={3} judul={false} />
+			</View>
+		);
 	if (slip.isError || !slip.data)
 		return (
 			<View style={styles.wrap}>

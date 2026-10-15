@@ -1,8 +1,10 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
-import { ErrorView, LoadingView, ScreenHeader } from "@/core/widgets";
-import { formatJam, formatTanggalPanjang, labelStatusRekap, labelTipePresensi } from "@/core/util/format";
+import { ErrorView, ScreenHeader } from "@/core/widgets";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { StatusChip } from "@/core/widgets/status-chip";
+import { formatJam, formatTanggalPanjang, labelStatusRekap, labelTipePresensi, toneStatusRekap } from "@/core/util/format";
 import { useDetailHari } from "../providers/attendance-queries";
 
 /**
@@ -13,23 +15,32 @@ export default function DetailHariScreen() {
 	const { tanggal } = useLocalSearchParams<{ tanggal: string }>();
 	const nilai = typeof tanggal === "string" ? tanggal : "";
 
-	const { data, isLoading, isError, refetch } = useDetailHari(nilai);
+	const { data, isLoading, isError, isFetching, refetch } = useDetailHari(nilai);
 
 	return (
 		<>
 			<ScreenHeader title="Detail Presensi" subtitle={nilai || undefined} />
 
 			{isLoading ? (
-				<LoadingView />
+				<SkeletonLayar jumlah={2} judul={false} />
 			) : isError || !data ? (
 				<ErrorView message="Gagal memuat detail presensi." onRetry={() => void refetch()} />
 			) : (
-				<ScrollView contentContainerStyle={styles.content}>
+				<ScrollView
+					contentContainerStyle={styles.content}
+					refreshControl={
+						<RefreshControl
+							refreshing={isFetching}
+							onRefresh={() => void refetch()}
+							tintColor={colors.primary}
+						/>
+					}
+				>
 					<View style={styles.card}>
 						<Text style={styles.tanggal}>{formatTanggalPanjang(data.tanggal)}</Text>
-						<Text style={[styles.status, data.status === "TANPA_JADWAL" && styles.statusNetral]}>
-							{labelStatusRekap(data.status)}
-						</Text>
+						<View style={styles.chipWrap}>
+							<StatusChip label={labelStatusRekap(data.status)} tone={toneStatusRekap(data.status)} />
+						</View>
 
 						<View style={styles.grid}>
 							<Stat label="Masuk" value={formatJam(data.masukAktual)} />
@@ -110,8 +121,7 @@ const styles = StyleSheet.create({
 		textTransform: "uppercase",
 	},
 	tanggal: { fontSize: fontSize.sm, color: colors.textMuted },
-	status: { fontSize: fontSize.xl, fontWeight: "700", color: colors.success },
-	statusNetral: { color: colors.textMuted },
+	chipWrap: { alignItems: "flex-start" },
 	grid: { flexDirection: "row", flexWrap: "wrap", marginTop: spacing.sm },
 	stat: { width: "33.33%", gap: 2, paddingVertical: spacing.sm },
 	statLabel: { fontSize: fontSize.xs, color: colors.textMuted },

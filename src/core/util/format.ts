@@ -66,6 +66,13 @@ export function formatTanggalPanjang(value: string | Date): string {
 	return `${d.getDate()} ${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+/** "Senin, 5 Oktober 2026 · 14.05" — datetime hero beranda (waktu lokal). */
+export function formatTanggalWaktu(value: string | Date = new Date()): string {
+	const d = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(d.getTime())) return "-";
+	return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()} · ${pad(d.getHours())}.${pad(d.getMinutes())}`;
+}
+
 /** "Sen" — untuk header kolom kalender. */
 export function namaHariPendek(value: string | Date): string {
 	return HARI[parseTanggal(value).getDay()].slice(0, 3);
@@ -114,6 +121,28 @@ export function labelStatusRekap(status: string): string {
 			return "Terlambat";
 		default:
 			return status;
+	}
+}
+
+/** Tone chip untuk status rekap harian (UX-1: hijau=hadir, kuning=perhatian, merah=alpa). */
+export function toneStatusRekap(status: string): "info" | "success" | "warning" | "danger" | "muted" {
+	switch (status) {
+		case "HADIR":
+			return "success";
+		case "TELAT":
+		case "TERLAMBAT":
+		case "PULANG_CEPAT":
+		case "LEMBUR":
+			return "warning";
+		case "ALPA":
+			return "danger";
+		case "CUTI":
+		case "IZIN":
+		case "SAKIT":
+		case "DINAS":
+			return "info";
+		default:
+			return "muted";
 	}
 }
 

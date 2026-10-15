@@ -1,10 +1,13 @@
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { ErrorView, LoadingView } from "@/core/widgets";
-import { formatBulanTahun, formatJam, labelStatusRekap, namaHariPendek, parseTanggal } from "@/core/util/format";
+import { ErrorView } from "@/core/widgets";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { EmptyView } from "@/core/widgets/states";
+import { ScreenHeader } from "@/core/widgets/screen-header";
+import { StatusChip } from "@/core/widgets/status-chip";
+import { formatBulanTahun, formatJam, labelStatusRekap, namaHariPendek, parseTanggal, toneStatusRekap } from "@/core/util/format";
 import { useRiwayatBulanan } from "../providers/attendance-queries";
 import type { RekapHarian } from "../models/attendance";
 
@@ -39,7 +42,8 @@ export default function RiwayatScreen() {
 	}, []);
 
 	return (
-		<SafeAreaView style={styles.safe} edges={["top"]}>
+		<View style={styles.layar}>
+			<ScreenHeader title="Riwayat Presensi" subtitle={formatBulanTahun(periode.bulan, periode.tahun)} />
 			<View style={styles.header}>
 				<Pressable
 					onPress={() => geser(-1)}
@@ -61,7 +65,7 @@ export default function RiwayatScreen() {
 			</View>
 
 			{isLoading ? (
-				<LoadingView />
+				<SkeletonLayar jumlah={6} judul={false} />
 			) : isError || !data ? (
 				<ErrorView message="Gagal memuat riwayat presensi." onRetry={() => void refetch()} />
 			) : (
@@ -72,7 +76,7 @@ export default function RiwayatScreen() {
 					onRefresh={() => void refetch()}
 					contentContainerStyle={styles.list}
 					ListEmptyComponent={
-						<Text style={styles.kosong}>Belum ada rekap presensi untuk bulan ini.</Text>
+						<EmptyView message="Belum ada rekap presensi untuk bulan ini." />
 					}
 					renderItem={({ item }) => (
 						<Pressable
@@ -88,7 +92,7 @@ export default function RiwayatScreen() {
 							</View>
 
 							<View style={styles.itemBody}>
-								<Text style={styles.itemStatus}>{labelStatusRekap(item.status)}</Text>
+								<StatusChip label={labelStatusRekap(item.status)} tone={toneStatusRekap(item.status)} />
 								<Text style={styles.itemMeta}>
 									Masuk {formatJam(item.masukAktual)} · Pulang {formatJam(item.keluarAktual)}
 								</Text>
@@ -106,12 +110,12 @@ export default function RiwayatScreen() {
 					)}
 				/>
 			)}
-		</SafeAreaView>
+		</View>
 	);
 }
 
 const styles = StyleSheet.create({
-	safe: { flex: 1, backgroundColor: colors.background },
+	layar: { flex: 1, backgroundColor: colors.background },
 	header: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -132,7 +136,6 @@ const styles = StyleSheet.create({
 	navLabel: { fontSize: fontSize.xl, color: colors.primary, fontWeight: "700", lineHeight: 28 },
 	periode: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
 	list: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
-	kosong: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: "center", paddingVertical: spacing.xl },
 
 	item: {
 		flexDirection: "row",
@@ -148,8 +151,7 @@ const styles = StyleSheet.create({
 	itemTanggal: { alignItems: "center", minWidth: 36 },
 	itemHari: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
 	itemBulan: { fontSize: fontSize.xs, color: colors.textMuted },
-	itemBody: { flex: 1, gap: 2 },
-	itemStatus: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	itemBody: { flex: 1, gap: spacing.xs, alignItems: "flex-start" },
 	itemMeta: { fontSize: fontSize.xs, color: colors.textMuted },
 	itemKanan: { alignItems: "flex-end", gap: spacing.xs },
 	badge: {

@@ -2,7 +2,8 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "rea
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { ScreenHeader } from "@/core/widgets/screen-header";
-import { EmptyView, ErrorView, LoadingView } from "@/core/widgets/states";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { EmptyView, ErrorView } from "@/core/widgets/states";
 import { formatRupiah, labelPeriode, type SlipSaya } from "../models/payslip";
 import { useSlipList } from "../providers/payslip-queries";
 
@@ -13,7 +14,13 @@ import { useSlipList } from "../providers/payslip-queries";
 export function PayslipListScreen() {
 	const slips = useSlipList();
 
-	if (slips.isPending) return <LoadingView label="Memuat slip gaji..." />;
+	if (slips.isPending)
+		return (
+			<View style={styles.wrap}>
+				<ScreenHeader title="Slip Gaji" subtitle="Memuat…" />
+				<SkeletonLayar jumlah={3} judul={false} />
+			</View>
+		);
 	if (slips.isError && slips.data === undefined)
 		return <ErrorView message="Gagal memuat daftar slip gaji." onRetry={() => void slips.refetch()} />;
 

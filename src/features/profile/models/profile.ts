@@ -23,6 +23,8 @@ export type Profil = {
 	/** Sudah di-mask oleh server (mis. 3273••••••1234) sesuai PRD Bag. 8. */
 	nik: string | null;
 	npwp: string | null;
+	/** Path berkas foto (dokumen FOTO terakhir) — null bila belum ada. */
+	fotoUrl?: string | null;
 	telepon: string | null;
 	email: string | null;
 	alamat: string | null;

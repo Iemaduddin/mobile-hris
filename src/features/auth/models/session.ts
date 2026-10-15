@@ -27,6 +27,8 @@ export type SessionKaryawan = {
 	nomorKaryawan: string;
 	namaLengkap: string;
 	status: string;
+	/** Path berkas foto (dokumen FOTO terakhir) — null bila belum ada. */
+	fotoUrl?: string | null;
 	posisiKaryawan?: PenempatanAktif[];
 };
 

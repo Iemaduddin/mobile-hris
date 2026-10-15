@@ -143,7 +143,7 @@ export default function PresensiScreen() {
 							<Text style={styles.lokasiMeta}>
 								{lokasi?.radiusMeter
 									? `Radius validasi ${lokasi.radiusMeter} m`
-									: "Lokasi ini belum mengatur radius"}
+									: "Titik & radius belum diatur — hubungi HR"}
 							</Text>
 						</View>
 						<Pressable
@@ -245,7 +245,8 @@ export default function PresensiScreen() {
 }
 
 function labelRadius(diLuarRadius: boolean | null): string {
-	if (diLuarRadius === null) return "Lokasi belum dapat dinilai (belum ada radius).";
+	if (diLuarRadius === null)
+		return "Kantor ini belum diatur titik & radiusnya — hubungi HR agar validasi lokasi aktif.";
 	return diLuarRadius ? "Di luar radius validasi." : "Di dalam radius validasi.";
 }
 
@@ -267,8 +268,10 @@ function noticeDariHasil(hasil: Extract<HasilAksi, { status: "tercatat" }>): Not
 		);
 	} else if (data.diLuarRadius === false) {
 		bagian.push("Di dalam radius lokasi kerja.");
+	} else if (peringatanLokasi) {
+		// GPS gagal — peringatan rinci sudah ada di bawah, tak perlu ganda.
 	} else {
-		bagian.push("Lokasi tidak dinilai (tanpa GPS atau lokasi tanpa radius).");
+		bagian.push("Titik & radius kantor belum diatur HR — presensi tetap sah.");
 	}
 
 	if (data.isMocked) {
@@ -362,3 +365,4 @@ const styles = StyleSheet.create({
 	flagDanger: { backgroundColor: colors.dangerLight, color: colors.danger },
 	flagWarning: { backgroundColor: colors.warningLight, color: colors.warning },
 });
+

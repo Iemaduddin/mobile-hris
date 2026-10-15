@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { ErrorView, LoadingView, ScreenHeader } from "@/core/widgets";
+import { ErrorView, ScreenHeader } from "@/core/widgets";
+import { SkeletonLayar } from "@/core/widgets/skeleton";
 import {
 	formatTanggalPanjang,
 	namaHariPendek,
@@ -71,11 +72,20 @@ export default function JadwalScreen() {
 			</View>
 
 			{isLoading ? (
-				<LoadingView />
+				<SkeletonLayar jumlah={5} judul={false} />
 			) : isError || !data ? (
 				<ErrorView message="Gagal memuat jadwal." onRetry={() => void refetch()} />
 			) : (
-				<ScrollView contentContainerStyle={styles.content}>
+				<ScrollView
+					contentContainerStyle={styles.content}
+					refreshControl={
+						<RefreshControl
+							refreshing={isFetching}
+							onRefresh={() => void refetch()}
+							tintColor={colors.primary}
+						/>
+					}
+				>
 					<Text style={styles.section}>Roster Shift</Text>
 					{daftarTanggal.map((tanggal) => {
 						const roster = rosterPerHari.get(tanggal);

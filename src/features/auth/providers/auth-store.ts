@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { tokenStore } from "@/core/storage/token-store";
+import { queryClient } from "@/core/network/query-client";
+import { ApiException } from "@/core/network/api-exception";
 import { batalDaftarPush } from "@/core/notifications/push";
 import { getMe, login as loginApi, logout as logoutApi } from "../data/auth-api";
 import type { SessionKaryawan, SessionUser } from "../models/session";
@@ -44,8 +46,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	signIn: async (email, password) => {
 		const result = await loginApi(email, password);
 		if (!result.token) {
-			throw new Error("Login berhasil tetapi token tidak diterima.");
+			throw new ApiException("Login berhasil tetapi token tidak diterima.", 500);
 		}
+		// Ganti akun → buang seluruh cache agar data user lama tak bocor.
+		queryClient.clear();
 		await tokenStore.set(result.token);
 		const me = await getMe();
 		set({ status: "signedIn", user: me.user, karyawan: me.karyawan });
@@ -61,6 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			// Token mungkin sudah tidak valid — tetap bersihkan lokal.
 		}
 		await tokenStore.clear();
+		queryClient.clear();
 		set({ status: "signedOut", user: null, karyawan: null });
 	},
 

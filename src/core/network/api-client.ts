@@ -20,9 +20,13 @@ type RequestOptions = {
  * - Menempel `Authorization: Bearer <sessionToken>` (PRD mobile Bag. 7-B1)
  * - Mem-parse respons `{success, data}` / `{success, error}`
  * - Melempar ApiException/NetworkException agar layar tinggal menangkap
+ * - Timeout 20 dtk: server tak terjangkau gagal-cepat dengan pesan jelas,
+ *   bukan menggantung selamanya (mis. salah IP backend di .env)
  */
+const TIMEOUT_MS = 20_000;
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = "GET", body, formData, signal, skipAuth = false } = options;
+	const { method = "GET", body, formData, signal: sinyalLuar, skipAuth = false } = options;
 
 	const headers: Record<string, string> = { Accept: "application/json" };
 	// Untuk FormData, Content-Type sengaja tidak di-set agar boundary dibuat runtime.
@@ -33,17 +37,31 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 		if (token) headers.Authorization = `Bearer ${token}`;
 	}
 
+	const controller = new AbortController();
+	let timeout = false;
+	const timer = setTimeout(() => {
+		timeout = true;
+		controller.abort();
+	}, TIMEOUT_MS);
+	const teruskanBatal = () => controller.abort();
+	sinyalLuar?.addEventListener("abort", teruskanBatal, { once: true });
+
 	let response: Response;
 	try {
 		response = await fetch(apiUrl(path), {
 			method,
 			headers,
 			body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
-			signal,
+			signal: controller.signal,
 		});
 	} catch (error) {
-		if (error instanceof Error && error.name === "AbortError") throw error;
-		throw new NetworkException();
+		if (error instanceof Error && error.name === "AbortError" && !timeout) throw error;
+		throw new NetworkException(
+			"Tidak dapat terhubung ke server. Periksa WiFi HP & IP backend (EXPO_PUBLIC_API_URL).",
+		);
+	} finally {
+		clearTimeout(timer);
+		sinyalLuar?.removeEventListener("abort", teruskanBatal);
 	}
 
 	let payload: ApiResponse<T> | null = null;

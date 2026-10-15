@@ -5,24 +5,40 @@ import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { AppButton } from "@/core/widgets";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
-
+import { useProfil } from "@/features/profile/providers/profile-queries";
 type MenuItem = {
 	label: string;
 	icon: keyof typeof Ionicons.glyphMap;
-	href?: `/schedule` | `/payslip` | `/profile`;
+	href?: `/schedule` | `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data`;
 	soon?: boolean;
+	roles?: string[];
 };
 
-/** Lainnya (PRD mobile Bag. 4): Jadwal, Slip Gaji, Profil, Pengaturan, Logout. */
+/** Lainnya (PRD mobile Bag. 4): Jadwal, Slip Gaji, Profil, Persetujuan, Pengumuman, Reimbursement, Pengaturan, Logout. */
 const MENU: MenuItem[] = [
 	{ label: "Jadwal", icon: "calendar-outline", href: "/schedule" },
 	{ label: "Slip Gaji", icon: "wallet-outline", href: "/payslip" },
 	{ label: "Profil Saya", icon: "person-outline", href: "/profile" },
-	{ label: "Pengaturan", icon: "settings-outline", soon: true },
+	{
+		label: "Persetujuan",
+		icon: "checkmark-circle-outline",
+		href: "/approval",
+		roles: ["MANAJER", "ADMIN_HR", "SUPER_ADMIN"],
+	},
+	{ label: "Pengumuman", icon: "megaphone-outline", href: "/pengumuman" },
+	{ label: "Reimbursement", icon: "receipt-outline", href: "/reimburse" },
+	{ label: "Kasbon Saya", icon: "cash-outline", href: "/kasbon" },
+	{ label: "Koreksi Presensi", icon: "time-outline", href: "/koreksi" },
+	{ label: "Tukar Shift", icon: "swap-horizontal-outline", href: "/tukar" },
+	{ label: "Update Data", icon: "person-add-outline", href: "/update-data" },
+	{ label: "Pengaturan", icon: "settings-outline", href: "/pengaturan" },
 ];
 
 export default function LainnyaRoute() {
 	const signOut = useAuthStore((s) => s.signOut);
+	const profil = useProfil();
+	const role = profil.data?.role ?? null;
+	const tampil = MENU.filter((item) => !item.roles || (role !== null && item.roles.includes(role)));
 
 	return (
 		<SafeAreaView style={styles.safe} edges={["top"]}>
@@ -30,7 +46,7 @@ export default function LainnyaRoute() {
 				<Text style={styles.title}>Lainnya</Text>
 
 				<View style={styles.card}>
-					{MENU.map((item, index) => (
+					{tampil.map((item, index) => (
 						<Pressable
 							key={item.label}
 							disabled={item.soon}
@@ -85,3 +101,4 @@ const styles = StyleSheet.create({
 	rowLabel: { flex: 1, fontSize: fontSize.md, color: colors.text },
 	rowSoon: { fontSize: fontSize.xs, color: colors.textMuted },
 });
+

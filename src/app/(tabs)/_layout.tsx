@@ -1,12 +1,21 @@
+import { StyleSheet } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import type { ColorValue } from "react-native";
-import { colors } from "@/core/theme";
+import { colors, spacing } from "@/core/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-function icon(bold: IconName, outline: IconName) {
-	function TabBarIcon({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) {
+function ikon(bold: IconName, outline: IconName) {
+	function TabBarIcon({
+		color,
+		size,
+		focused,
+	}: {
+		color: ColorValue;
+		size: number;
+		focused: boolean;
+	}) {
 		return <Ionicons name={focused ? bold : outline} size={size} color={color} />;
 	}
 	TabBarIcon.displayName = `TabBarIcon(${bold})`;
@@ -14,8 +23,8 @@ function icon(bold: IconName, outline: IconName) {
 }
 
 /**
- * Navigasi utama (PRD mobile Bag. 4): Beranda · Presensi · Pengajuan · Lainnya.
- * Tahap M1 mengisi Beranda, Presensi, dan Lainnya (Jadwal); Pengajuan menyusul di M2.
+ * Navigasi utama (PRD mobile Bag. 4):
+ * Beranda · Presensi · Pengajuan · Notifikasi · Lainnya.
  */
 export default function TabsLayout() {
 	return (
@@ -24,25 +33,43 @@ export default function TabsLayout() {
 				headerShown: false,
 				tabBarActiveTintColor: colors.primary,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarStyle: { borderTopColor: colors.border, backgroundColor: colors.surface },
+				tabBarStyle: styles.bar,
+				tabBarLabelStyle: styles.label,
+				tabBarHideOnKeyboard: true,
 			}}
 		>
 			<Tabs.Screen
 				name="index"
-				options={{ title: "Beranda", tabBarIcon: icon("home", "home-outline") }}
+				options={{ title: "Beranda", tabBarIcon: ikon("home", "home-outline") }}
 			/>
 			<Tabs.Screen
 				name="attendance"
-				options={{ title: "Presensi", tabBarIcon: icon("time", "time-outline") }}
+				options={{ title: "Presensi", tabBarIcon: ikon("time", "time-outline") }}
 			/>
 			<Tabs.Screen
 				name="requests"
-				options={{ title: "Pengajuan", tabBarIcon: icon("document-text", "document-text-outline") }}
+				options={{ title: "Pengajuan", tabBarIcon: ikon("document-text", "document-text-outline") }}
+			/>
+			<Tabs.Screen
+				name="notifikasi"
+				options={{ title: "Notifikasi", tabBarIcon: ikon("notifications", "notifications-outline") }}
 			/>
 			<Tabs.Screen
 				name="more"
-				options={{ title: "Lainnya", tabBarIcon: icon("menu", "menu-outline") }}
+				options={{ title: "Lainnya", tabBarIcon: ikon("menu", "menu-outline") }}
 			/>
 		</Tabs>
 	);
 }
+
+const styles = StyleSheet.create({
+	bar: {
+		height: 68,
+		paddingTop: spacing.xs,
+		paddingBottom: spacing.xs,
+		borderTopWidth: 1,
+		borderTopColor: colors.border,
+		backgroundColor: colors.surface,
+	},
+	label: { fontSize: 11, fontWeight: "600" },
+});

@@ -59,9 +59,12 @@ function toPosisi(location: Location.LocationObject): PosisiPerangkat {
 	};
 }
 
+/** Penanda timeout — bukan Error agar tak memicu warning LogBox. */
+const BATAS_WAKTU = Symbol("BATAS_WAKTU");
+
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	return new Promise((resolve, reject) => {
-		const timer = setTimeout(() => reject(new Error("TIMEOUT")), ms);
+		const timer = setTimeout(() => reject(BATAS_WAKTU), ms);
 		promise.then(
 			(value) => {
 				clearTimeout(timer);
@@ -95,7 +98,7 @@ export async function ambilPosisi(): Promise<HasilPosisi> {
 
 		return { ok: true, posisi: toPosisi(location) };
 	} catch (error) {
-		if (error instanceof Error && error.message === "TIMEOUT") {
+		if (error === BATAS_WAKTU) {
 			return { ok: false, reason: "TIDAK_TERSEDIA" };
 		}
 		return { ok: false, reason: "TIDAK_TERSEDIA" };

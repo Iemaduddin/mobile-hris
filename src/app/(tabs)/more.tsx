@@ -5,11 +5,11 @@ import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { AppButton } from "@/core/widgets";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
-import { useProfil } from "@/features/profile/providers/profile-queries";
+import { useProfile } from "@/features/profile/providers/profile-queries";
 type MenuItem = {
 	label: string;
 	icon: keyof typeof Ionicons.glyphMap;
-	href?: `/schedule` | `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data`;
+	href?: `/schedule` | `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas`;
 	soon?: boolean;
 	roles?: string[];
 };
@@ -31,14 +31,15 @@ const MENU: MenuItem[] = [
 	{ label: "Koreksi Presensi", icon: "time-outline", href: "/koreksi" },
 	{ label: "Tukar Shift", icon: "swap-horizontal-outline", href: "/tukar" },
 	{ label: "Update Data", icon: "person-add-outline", href: "/update-data" },
+	{ label: "Uang Dinas", icon: "briefcase-outline", href: "/uangdinas" },
 	{ label: "Pengaturan", icon: "settings-outline", href: "/pengaturan" },
 ];
 
-export default function LainnyaRoute() {
+export default function MoreRoute() {
 	const signOut = useAuthStore((s) => s.signOut);
-	const profil = useProfil();
-	const role = profil.data?.role ?? null;
-	const tampil = MENU.filter((item) => !item.roles || (role !== null && item.roles.includes(role)));
+	const profile = useProfile();
+	const role = profile.data?.role ?? null;
+	const visible = MENU.filter((item) => !item.roles || (role !== null && item.roles.includes(role)));
 
 	return (
 		<SafeAreaView style={styles.safe} edges={["top"]}>
@@ -46,7 +47,7 @@ export default function LainnyaRoute() {
 				<Text style={styles.title}>Lainnya</Text>
 
 				<View style={styles.card}>
-					{tampil.map((item, index) => (
+					{visible.map((item, index) => (
 						<Pressable
 							key={item.label}
 							disabled={item.soon}

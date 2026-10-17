@@ -1,12 +1,12 @@
 /**
- * Helper format tanggal & waktu.
- * Nama hari/bulan ditulis manual agar konsisten di semua runtime Hermes
- * (Intl tidak selengkap ICU di build produksi React Native).
+ * Date & time helpers.
+ * Weekday/month names are hardcoded for consistency across Hermes runtimes
+ * (Intl lacks full ICU in React Native production builds).
  */
 
-const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-const BULAN_PENDEK = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-const BULAN_PANJANG = [
+const WEEKDAYS = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const LONG_MONTHS = [
 	"Januari",
 	"Februari",
 	"Maret",
@@ -21,79 +21,86 @@ const BULAN_PANJANG = [
 	"Desember",
 ];
 
-const pad = (n: number) => String(n).padStart(2, "0");
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
 /**
- * Parse tanggal-only (`YYYY-MM-DD` atau ISO yang diawali tanggal itu)
- * sebagai waktu lokal — menghindari geser hari akibat zona UTC.
+ * Parse a date-only string (`YYYY-MM-DD`, or ISO starting with that date)
+ * as local time — avoids day-shifting from the UTC zone.
  */
-export function parseTanggal(value: string | Date): Date {
+export function parseLocalDate(value: string | Date): Date {
 	if (value instanceof Date) return value;
-	const [tahun, bulan, tanggal] = value.slice(0, 10).split("-").map(Number);
-	return new Date(tahun, (bulan ?? 1) - 1, tanggal ?? 1);
+	const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+	return new Date(year, (month ?? 1) - 1, day ?? 1);
 }
 
-/** `YYYY-MM-DD` dari Date atau string ISO apa pun. */
-export function toTanggalOnly(value: string | Date): string {
-	const d = value instanceof Date ? value : parseTanggal(value);
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** `YYYY-MM-DD` from any Date or ISO string. */
+export function toDateOnly(value: string | Date): string {
+	const d = value instanceof Date ? value : parseLocalDate(value);
+	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-/** Geser tanggal sebanyak `delta` hari → `YYYY-MM-DD`. */
-export function tambahHari(value: string | Date, delta: number): string {
-	const d = parseTanggal(value);
+/** Shift a date by `delta` days → `YYYY-MM-DD`. */
+export function addDays(value: string | Date, delta: number): string {
+	const d = parseLocalDate(value);
 	d.setDate(d.getDate() + delta);
-	return toTanggalOnly(d);
+	return toDateOnly(d);
 }
 
-/** "HH:mm" dari timestamp ISO atau Date. */
-export function formatJam(value: string | Date | null | undefined): string {
+/** "HH:mm" from an ISO timestamp or Date. */
+export function formatTime(value: string | Date | null | undefined): string {
 	if (value == null || value === "") return "-";
 	const d = typeof value === "string" ? new Date(value) : value;
 	if (Number.isNaN(d.getTime())) return "-";
-	return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 /** "Sen, 5 Okt 2026" */
-export function formatTanggal(value: string | Date): string {
-	const d = parseTanggal(value);
-	return `${HARI[d.getDay()].slice(0, 3)}, ${d.getDate()} ${BULAN_PENDEK[d.getMonth()]} ${d.getFullYear()}`;
+export function formatDate(value: string | Date): string {
+	const d = parseLocalDate(value);
+	return `${WEEKDAYS[d.getDay()].slice(0, 3)}, ${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** "5 Oktober 2026" */
-export function formatTanggalPanjang(value: string | Date): string {
-	const d = parseTanggal(value);
-	return `${d.getDate()} ${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()}`;
+export function formatLongDate(value: string | Date): string {
+	const d = parseLocalDate(value);
+	return `${d.getDate()} ${LONG_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** "Senin, 5 Oktober 2026 · 14.05" — datetime hero beranda (waktu lokal). */
-export function formatTanggalWaktu(value: string | Date = new Date()): string {
+/** "Senin, 5 Oktober 2026 · 14.05" — home hero datetime (local time). */
+export function formatDateTime(value: string | Date = new Date()): string {
 	const d = value instanceof Date ? value : new Date(value);
 	if (Number.isNaN(d.getTime())) return "-";
-	return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()} · ${pad(d.getHours())}.${pad(d.getMinutes())}`;
+	return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${LONG_MONTHS[d.getMonth()]} ${d.getFullYear()} · ${pad2(d.getHours())}.${pad2(d.getMinutes())}`;
 }
 
-/** "Sen" — untuk header kolom kalender. */
-export function namaHariPendek(value: string | Date): string {
-	return HARI[parseTanggal(value).getDay()].slice(0, 3);
+/** "Sen" — calendar column header. */
+export function shortWeekdayName(value: string | Date): string {
+	return WEEKDAYS[parseLocalDate(value).getDay()].slice(0, 3);
 }
 
 /** "Okt 2026" */
-export function formatBulanTahun(bulan: number, tahun: number): string {
-	return `${BULAN_PANJANG[bulan - 1]} ${tahun}`;
+export function formatMonthYear(month: number, year: number): string {
+	return `${LONG_MONTHS[month - 1]} ${year}`;
 }
 
 /** "1 j 30 m" / "45 m" / "0 m" */
-export function formatDurasi(menit: number): string {
-	if (menit <= 0) return "0 m";
-	const jam = Math.floor(menit / 60);
-	const sisa = menit % 60;
-	if (jam === 0) return `${sisa} m`;
-	return sisa === 0 ? `${jam} j` : `${jam} j ${sisa} m`;
+export function formatDuration(minutes: number): string {
+	if (minutes <= 0) return "0 m";
+	const hours = Math.floor(minutes / 60);
+	const rest = minutes % 60;
+	if (hours === 0) return `${rest} m`;
+	return rest === 0 ? `${hours} j` : `${hours} j ${rest} m`;
 }
 
-/** Label ramah untuk status rekap harian. */
-export function labelStatusRekap(status: string): string {
+/** "Rp1.500.000" — single currency formatter for every amount shown on mobile. */
+export function formatIDR(value: string | number): string {
+	const n = typeof value === "number" ? value : Number(value);
+	if (!Number.isFinite(n)) return "Rp0";
+	return `Rp${Math.round(n).toLocaleString("id-ID")}`;
+}
+
+/** Friendly label for the daily attendance recap status. */
+export function getAttendanceStatusLabel(status: string): string {
 	switch (status) {
 		case "HADIR":
 			return "Hadir";
@@ -124,8 +131,8 @@ export function labelStatusRekap(status: string): string {
 	}
 }
 
-/** Tone chip untuk status rekap harian (UX-1: hijau=hadir, kuning=perhatian, merah=alpa). */
-export function toneStatusRekap(status: string): "info" | "success" | "warning" | "danger" | "muted" {
+/** Chip tone for the daily recap status (UX-1: green=present, yellow=attention, red=absent). */
+export function getAttendanceStatusTone(status: string): "info" | "success" | "warning" | "danger" | "muted" {
 	switch (status) {
 		case "HADIR":
 			return "success";
@@ -146,8 +153,8 @@ export function toneStatusRekap(status: string): "info" | "success" | "warning" 
 	}
 }
 
-/** Label untuk tipe presensi. */
-export function labelTipePresensi(tipe: string): string {
+/** Label for the attendance event type. */
+export function getPresenceTypeLabel(tipe: string): string {
 	switch (tipe) {
 		case "MASUK":
 			return "Masuk";

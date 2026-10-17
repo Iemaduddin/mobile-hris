@@ -2,60 +2,60 @@ import { useEffect } from "react";
 import Constants from "expo-constants";
 import { router, type Href } from "expo-router";
 import { Platform } from "react-native";
-import { ambilPerangkatInfo } from "@/core/device/device-info";
+import { getDeviceInfo } from "@/core/device/device-info";
 import { api } from "@/core/network/api-client";
 
-type ModulNotifikasi = typeof import("expo-notifications");
-type ModEventToken = { data: string };
-type ModResponse = { actionIdentifier: string; notification: { request: { identifier: string } } };
+type NotificationsModule = typeof import("expo-notifications");
+type NativeTokenEvent = { data: string };
+type NotificationResponseEvent = { actionIdentifier: string; notification: { request: { identifier: string } } };
 
 /**
- * Push notification (PRD mobile Bag. 5.8, tahap M4).
- * - Minta izin → ambil `ExpoPushToken` → daftarkan ke `POST /api/v1/devices`.
- * - Tap notifikasi → deep link ke layar terkait (expo-router).
- * - Token berputar → daftar ulang otomatis.
+ * Push notification (mobile PRD Bag. 5.8, stage M4).
+ * - Ask permission → grab the `ExpoPushToken` → register via `POST /api/v1/devices`.
+ * - Notification tap → deep link to the related screen (expo-router).
+ * - Rotating token → automatic re-registration.
  *
- * Semua bersifat best-effort: modul dimuat malas dan kegagalan apa pun
- * (Expo Go, native module tak cocok, tanpa izin/projectId) menghasilkan
- * null — aplikasi tetap jalan (fallback refresh in-app). Impor statis
- * dihindari karena `expo-notifications` baru me-require native module
- * topik saat diimpor, yang meledak di runtime lama.
+ * All best-effort: the module loads lazily and any failure
+ * (Expo Go, mismatched native module, no permission/projectId) yields
+ * null — the app keeps running (in-app refresh fallback). Static imports
+ * are avoided because `expo-notifications` requires its native module
+ * at import time, which explodes on old runtimes.
  */
 
 const CHANNEL_ID = "default";
 
-let modulCache: Promise<ModulNotifikasi | null> | null = null;
+let moduleCache: Promise<NotificationsModule | null> | null = null;
 
-/** Muat expo-notifications sekali; null bila runtime tak mendukung. */
-function muatNotifikasi(): Promise<ModulNotifikasi | null> {
-	if (!modulCache) {
-		modulCache = import("expo-notifications").catch(() => null);
+/** Load expo-notifications once; null when the runtime lacks support. */
+function loadNotifications(): Promise<NotificationsModule | null> {
+	if (!moduleCache) {
+		moduleCache = import("expo-notifications").catch(() => null);
 	}
-	return modulCache;
+	return moduleCache;
 }
 
-/** true bila push didukung (dev build / production, bukan Expo Go / web). */
-function pushDidukung(): boolean {
+/** true when push is supported (dev build / production, not Expo Go / web). */
+function isPushSupported(): boolean {
 	return Platform.OS !== "web" && Constants.appOwnership !== "expo";
 }
 
 /**
- * Token native terakhir yang sudah memicu pendaftaran ulang.
- * `getExpoPushTokenAsync()` memicu event token setiap dipanggil — tanpa
- * dedupe ini, listener → daftarkanPushToken → event → listener jadi loop
- * tak berujung (ratusan POST /devices).
+ * Last native token that already triggered a re-registration.
+ * `getExpoPushTokenAsync()` fires a token event on every call — without
+ * this dedupe, listener → registerPushToken → event → listener loops
+ * forever (hundreds of POST /devices).
  */
-let fcmTerakhir: string | null = null;
-let sedangDaftar: Promise<string | null> | null = null;
+let lastFcmToken: string | null = null;
+let registering: Promise<string | null> | null = null;
 
-// Tampilkan notifikasi yang masuk selama aplikasi terbuka (foreground).
-let handlerTerpasang = false;
+// Show incoming notifications while the app is open (foreground).
+let handlerInstalled = false;
 
-async function pasangHandler(): Promise<void> {
-	if (handlerTerpasang) return;
-	handlerTerpasang = true;
+async function installHandler(): Promise<void> {
+	if (handlerInstalled) return;
+	handlerInstalled = true;
 	try {
-		const Notifications = await muatNotifikasi();
+		const Notifications = await loadNotifications();
 		await Notifications?.setNotificationHandler({
 			handleNotification: async () => ({
 				shouldPlaySound: true,
@@ -65,13 +65,13 @@ async function pasangHandler(): Promise<void> {
 			}),
 		});
 	} catch {
-		// Runtime tak mendukung — abaikan, fallback refresh in-app.
+		// Runtime unsupported — ignore, in-app refresh fallback.
 	}
 }
 
-async function buatChannelAndroid(Notifications: ModulNotifikasi): Promise<void> {
+async function createAndroidChannel(Notifications: NotificationsModule): Promise<void> {
 	if (Platform.OS !== "android") return;
-	// Android 13+: prompt izin baru muncul setelah ada notification channel.
+	// Android 13+: the permission prompt only appears after a notification channel exists.
 	await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
 		name: "Notifikasi HRIS",
 		importance: Notifications.AndroidImportance.HIGH,
@@ -80,52 +80,52 @@ async function buatChannelAndroid(Notifications: ModulNotifikasi): Promise<void>
 	});
 }
 
-function ambilProjectId(): string | null {
+function getProjectId(): string | null {
 	return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? null;
 }
 
-async function daftarkanTokenKeServer(token: string): Promise<void> {
-	const perangkat = await ambilPerangkatInfo();
+async function registerTokenWithServer(token: string): Promise<void> {
+	const device = await getDeviceInfo();
 	await api.post("/api/v1/devices", {
-		deviceId: perangkat.deviceId,
-		deviceName: perangkat.deviceName,
-		platform: perangkat.platform,
+		deviceId: device.deviceId,
+		deviceName: device.deviceName,
+		platform: device.platform,
 		pushToken: token,
 	});
 }
 
 /**
- * Minta izin notifikasi, ambil ExpoPushToken, kirim ke server.
- * Mengembalikan token bila berhasil, null bila tidak (selalu best-effort).
+ * Ask notification permission, grab the ExpoPushToken, send it to the server.
+ * Returns the token on success, null otherwise (always best-effort).
  */
-export async function daftarkanPushToken(): Promise<string | null> {
-	// Push tidak tersedia di Expo Go (SDK 53+) — jangan ganggu dengan prompt izin.
-	if (!pushDidukung()) return null;
+export async function registerPushToken(): Promise<string | null> {
+	// Push is unavailable in Expo Go (SDK 53+) — don't nag with a permission prompt.
+	if (!isPushSupported()) return null;
 
-	// Satu pendaftaran pada satu waktu (panggilan paralel dari effect + listener).
-	if (sedangDaftar) return sedangDaftar;
+	// One registration at a time (parallel calls from effect + listener).
+	if (registering) return registering;
 
-	sedangDaftar = (async () => {
+	registering = (async () => {
 		try {
-			const Notifications = await muatNotifikasi();
+			const Notifications = await loadNotifications();
 			if (!Notifications) return null;
-			await pasangHandler();
-			await buatChannelAndroid(Notifications);
+			await installHandler();
+			await createAndroidChannel(Notifications);
 
-			const izin = await Notifications.getPermissionsAsync();
-			const status = izin.granted
-				? izin.status
+			const permission = await Notifications.getPermissionsAsync();
+			const status = permission.granted
+				? permission.status
 				: (await Notifications.requestPermissionsAsync()).status;
 			if (status !== "granted") return null;
 
-			const projectId = ambilProjectId();
+			const projectId = getProjectId();
 			if (!projectId) return null;
 
 			const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-			await daftarkanTokenKeServer(token);
+			await registerTokenWithServer(token);
 			return token;
 		} catch (error) {
-			// Pesan saja (bukan objek Error) agar tak jadi warning LogBox.
+			// Message only (not an Error object) to avoid LogBox warnings.
 			console.warn(
 				"[push] Gagal mendaftarkan push token:",
 				error instanceof Error ? error.message : String(error),
@@ -133,117 +133,117 @@ export async function daftarkanPushToken(): Promise<string | null> {
 			return null;
 		}
 	})().finally(() => {
-		sedangDaftar = null;
+		registering = null;
 	});
 
-	return sedangDaftar;
+	return registering;
 }
 
-/** Unregister perangkat saat logout: cabut pushToken & nonaktifkan baris device. */
-export async function batalDaftarPush(): Promise<void> {
+/** Unregister the device on logout: revoke the pushToken & deactivate the device row. */
+export async function unregisterPush(): Promise<void> {
 	if (Platform.OS === "web") return;
 	try {
-		const perangkat = await ambilPerangkatInfo();
-		await api.delete(`/api/v1/devices?deviceId=${encodeURIComponent(perangkat.deviceId)}`);
+		const device = await getDeviceInfo();
+		await api.delete(`/api/v1/devices?deviceId=${encodeURIComponent(device.deviceId)}`);
 	} catch {
-		// best-effort — server juga membuang token yang kedaluwarsa saat push gagal.
+		// best-effort — the server also drops expired tokens when pushes fail.
 	}
 }
 
 // ============================================================
-// Listener: tap → deep link, foreground → refresh in-app
+// Listeners: tap → deep link, foreground → in-app refresh
 // ============================================================
 
-/** Penanda respons terakhir yang sudah dinavigasi (cegah dobel saat cold start). */
-let responsTerakhir: string | null = null;
+/** Last response already navigated (prevents doubles on cold start). */
+let lastResponseId: string | null = null;
 
-function urlDariNotifikasi(data: unknown): string | null {
+function urlFromNotification(data: unknown): string | null {
 	if (!data || typeof data !== "object") return null;
 	const url = (data as Record<string, unknown>).url;
 	return typeof url === "string" && url.startsWith("/") ? url : null;
 }
 
-async function bukaNotifikasi(response: ModResponse, Notifications: ModulNotifikasi): Promise<void> {
+async function openNotification(response: NotificationResponseEvent, Notifications: NotificationsModule): Promise<void> {
 	if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
 	const identifier = response.notification.request.identifier;
-	if (identifier === responsTerakhir) return;
-	responsTerakhir = identifier;
+	if (identifier === lastResponseId) return;
+	lastResponseId = identifier;
 
 	const data = (
 		response as unknown as {
 			notification: { request: { content: { data?: unknown } } };
 		}
 	).notification.request.content.data;
-	const url = urlDariNotifikasi(data);
+	const url = urlFromNotification(data);
 	if (url) router.push(url as Href);
 }
 
-type PilihanPushNotifikasi = {
-	/** Status sesi sudah `signedIn` — listener baru dipasang setelah root layout siap. */
-	siap: boolean;
-	/** Notifikasi diterima di foreground → segarkan data in-app (fallback bila push belum siap). */
-	onNotifikasiDiterima?: () => void;
+type PushNotificationOptions = {
+	/** Session status is `signedIn` — listeners attach once the root layout is ready. */
+	ready: boolean;
+	/** Foreground notification → refresh in-app data (fallback when push isn't ready). */
+	onNotificationReceived?: () => void;
 };
 
 /**
- * Pasang listener push notification (PRD mobile Bag. 5.8):
- * - tap / cold start → deep link (`data.url`) ke layar terkait
- * - token berputar → daftar ulang ke server
- * - diterima di foreground → callback refresh in-app + bersihkan badge
+ * Attach push notification listeners (mobile PRD Bag. 5.8):
+ * - tap / cold start → deep link (`data.url`) to the related screen
+ * - rotating token → re-register with the server
+ * - foreground receipt → in-app refresh callback + clear badge
  */
-export function usePushNotifikasi({ siap, onNotifikasiDiterima }: PilihanPushNotifikasi): void {
+export function usePushNotifications({ ready, onNotificationReceived }: PushNotificationOptions): void {
 	useEffect(() => {
-		if (!siap || !pushDidukung()) return;
+		if (!ready || !isPushSupported()) return;
 
 		let tap: { remove: () => void } | null = null;
-		let diterima: { remove: () => void } | null = null;
-		let putarToken: { remove: () => void } | null = null;
-		let batal = false;
+		let received: { remove: () => void } | null = null;
+		let tokenRefresh: { remove: () => void } | null = null;
+		let cancelled = false;
 
 		void (async () => {
 			try {
-				const Notifications = await muatNotifikasi();
-				if (!Notifications || batal) return;
-				await pasangHandler();
-				if (batal) return;
+				const Notifications = await loadNotifications();
+				if (!Notifications || cancelled) return;
+				await installHandler();
+				if (cancelled) return;
 
 				tap = Notifications.addNotificationResponseReceivedListener((response) => {
-					void bukaNotifikasi(
-						response as unknown as ModResponse,
+					void openNotification(
+						response as unknown as NotificationResponseEvent,
 						Notifications,
 					);
 				});
-				diterima = Notifications.addNotificationReceivedListener(() => {
-					onNotifikasiDiterima?.();
+				received = Notifications.addNotificationReceivedListener(() => {
+					onNotificationReceived?.();
 				});
-				putarToken = Notifications.addPushTokenListener((event: ModEventToken) => {
-					// Event berisi token native (FCM), bukan ExpoPushToken yang dipakai server.
-					// Abaikan bila token sama dengan terakhir — cegah loop pendaftaran ulang.
-					if (event.data === fcmTerakhir) return;
-					fcmTerakhir = event.data;
-					// Daftar ulang penuh → tukar ulang ke ExpoPushToken sebelum kirim ke API.
-					void daftarkanPushToken();
+				tokenRefresh = Notifications.addPushTokenListener((event: NativeTokenEvent) => {
+					// The event carries the native (FCM) token, not the ExpoPushToken the server uses.
+					// Ignore repeats of the last token — prevents re-registration loops.
+					if (event.data === lastFcmToken) return;
+					lastFcmToken = event.data;
+					// Full re-registration → swap back to an ExpoPushToken before sending to the API.
+					void registerPushToken();
 				});
 
-				// Cold start dari tap notifikasi → navigasi + bersihkan agar tidak diulang.
+				// Cold start from a notification tap → navigate + clear so it never repeats.
 				const cold = await Notifications.getLastNotificationResponseAsync();
-				if (cold && !batal) {
-					await bukaNotifikasi(cold as unknown as ModResponse, Notifications);
+				if (cold && !cancelled) {
+					await openNotification(cold as unknown as NotificationResponseEvent, Notifications);
 					await Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
 				}
-				if (!batal) {
+				if (!cancelled) {
 					await Notifications.setBadgeCountAsync(0).catch(() => undefined);
 				}
 			} catch {
-				// Native module tak tersedia — abaikan, fallback refresh in-app.
+				// Native module unavailable — ignore, in-app refresh fallback.
 			}
 		})();
 
 		return () => {
-			batal = true;
+			cancelled = true;
 			tap?.remove();
-			diterima?.remove();
-			putarToken?.remove();
+			received?.remove();
+			tokenRefresh?.remove();
 		};
-	}, [siap, onNotifikasiDiterima]);
+	}, [ready, onNotificationReceived]);
 }

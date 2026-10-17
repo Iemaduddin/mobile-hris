@@ -3,60 +3,60 @@ import { Animated, StyleSheet, View, type DimensionValue, type ViewStyle } from 
 import { colors, radius, spacing } from "@/core/theme";
 
 /**
- * Skeleton loading (UX-4): blok abu berdenyut sebagai placeholder konten,
- * menggantikan spinner fullscreen agar transisi antar-layar terasa instan.
+ * Skeleton loading (UX-4): pulsing gray blocks as content placeholders,
+ * replacing the fullscreen spinner so screen transitions feel instant.
  */
 export function Skeleton({
-	lebar = "100%",
-	tinggi = 16,
-	gaya,
+	width = "100%",
+	height = 16,
+	style,
 }: {
-	lebar?: DimensionValue;
-	tinggi?: number;
-	gaya?: ViewStyle;
+	width?: DimensionValue;
+	height?: number;
+	style?: ViewStyle;
 }) {
-	const denyut = useMemo(() => new Animated.Value(0.35), []);
+	const pulse = useMemo(() => new Animated.Value(0.35), []);
 
 	useEffect(() => {
 		const loop = Animated.loop(
 			Animated.sequence([
-				Animated.timing(denyut, { toValue: 1, duration: 750, useNativeDriver: true }),
-				Animated.timing(denyut, { toValue: 0.35, duration: 750, useNativeDriver: true }),
+				Animated.timing(pulse, { toValue: 1, duration: 750, useNativeDriver: true }),
+				Animated.timing(pulse, { toValue: 0.35, duration: 750, useNativeDriver: true }),
 			]),
 		);
 		loop.start();
 		return () => loop.stop();
-	}, [denyut]);
+	}, [pulse]);
 
-	return <Animated.View style={[styles.blok, { width: lebar, height: tinggi, opacity: denyut }, gaya]} />;
+	return <Animated.View style={[styles.block, { width, height, opacity: pulse }, style]} />;
 }
 
-/** Rangka satu kartu daftar (judul + 2 baris). */
-export function SkeletonKartu({ kunci }: { kunci?: string }) {
+/** Single list-card skeleton (title + 2 rows). */
+export function CardSkeleton({ id }: { id?: string }) {
 	return (
-		<View key={kunci} style={styles.kartu}>
-			<Skeleton lebar="55%" tinggi={18} />
-			<Skeleton lebar="90%" />
-			<Skeleton lebar="70%" />
+		<View key={id} style={styles.card}>
+			<Skeleton width="55%" height={18} />
+			<Skeleton width="90%" />
+			<Skeleton width="70%" />
 		</View>
 	);
 }
 
-/** Layar skeleton: judul + N kartu — pengganti LoadingView fullscreen. */
-export function SkeletonLayar({ jumlah = 4, judul = true }: { jumlah?: number; judul?: boolean }) {
+/** Screen skeleton: title + N cards — replaces the fullscreen LoadingView. */
+export function ScreenSkeleton({ count = 4, showTitle = true }: { count?: number; showTitle?: boolean }) {
 	return (
-		<View style={styles.layar}>
-			{judul ? <Skeleton lebar="45%" tinggi={24} /> : null}
-			{Array.from({ length: jumlah }, (_, i) => (
-				<SkeletonKartu key={i} />
+		<View style={styles.screen}>
+			{showTitle ? <Skeleton width="45%" height={24} /> : null}
+			{Array.from({ length: count }, (_, i) => (
+				<CardSkeleton key={i} />
 			))}
 		</View>
 	);
 }
 
 const styles = StyleSheet.create({
-	blok: { backgroundColor: colors.border, borderRadius: radius.sm },
-	kartu: {
+	block: { backgroundColor: colors.border, borderRadius: radius.sm },
+	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
 		borderWidth: 1,
@@ -64,5 +64,5 @@ const styles = StyleSheet.create({
 		padding: spacing.md,
 		gap: spacing.sm,
 	},
-	layar: { flex: 1, padding: spacing.xl, gap: spacing.sm, backgroundColor: colors.background },
+	screen: { flex: 1, padding: spacing.xl, gap: spacing.sm, backgroundColor: colors.background },
 });

@@ -1,70 +1,70 @@
 import * as Location from "expo-location";
 
 /**
- * Akses lokasi perangkat (PRD mobile Bag. 5.3.A).
- * Hanya lokasi foreground — PRD Bag. 3: tanpa pelacakan latar belakang.
+ * Device location access (mobile PRD Bag. 5.3.A).
+ * Foreground only — PRD Bag. 3: no background tracking.
  */
 
-/** Berapa lama menunggu fix GPS sebelum dianggap gagal. */
+/** How long to wait for a GPS fix before giving up. */
 const TIMEOUT_MS = 15_000;
 
-export type PosisiPerangkat = {
+export type DevicePosition = {
 	latitude: number;
 	longitude: number;
-	akurasiMeter: number | null;
-	/** `true` bila sistem melaporkan lokasi simulasi (Android; iOS selalu `false`). */
+	accuracyMeters: number | null;
+	/** `true` when the OS reports a mocked location (Android; always `false` on iOS). */
 	isMocked: boolean;
 	timestamp: number;
 };
 
-export type GagalAmbilPosisi =
-	| "LAYANAN_NONAKTIF"
-	| "IZIN_DITOLAK"
-	| "TIDAK_TERSEDIA";
+export type PositionFailure =
+	| "SERVICE_OFF"
+	| "PERMISSION_DENIED"
+	| "UNAVAILABLE";
 
-export type HasilPosisi =
-	| { ok: true; posisi: PosisiPerangkat }
-	| { ok: false; reason: GagalAmbilPosisi };
+export type PositionResult =
+	| { ok: true; position: DevicePosition }
+	| { ok: false; reason: PositionFailure };
 
-export type StatusIzin = {
-	diizinkan: boolean;
-	/** `false` = pengguna menolak permanen → arahkan ke Pengaturan. */
-	bisaTanyaLagi: boolean;
+export type PermissionStatus = {
+	granted: boolean;
+	/** `false` = permanently denied by the user → point them at Settings. */
+	canAskAgain: boolean;
 };
 
-/** Minta (atau sekadar cek) izin lokasi foreground. */
-export async function mintaIzinLokasi(request = true): Promise<StatusIzin> {
+/** Ask for (or just check) foreground location permission. */
+export async function requestLocationPermission(request = true): Promise<PermissionStatus> {
 	try {
 		const response = request
 			? await Location.requestForegroundPermissionsAsync()
 			: await Location.getForegroundPermissionsAsync();
 
 		return {
-			diizinkan: response.granted,
-			bisaTanyaLagi: response.canAskAgain,
+			granted: response.granted,
+			canAskAgain: response.canAskAgain,
 		};
 	} catch {
-		return { diizinkan: false, bisaTanyaLagi: false };
+		return { granted: false, canAskAgain: false };
 	}
 }
 
-function toPosisi(location: Location.LocationObject): PosisiPerangkat {
+function toPosition(location: Location.LocationObject): DevicePosition {
 	return {
 		latitude: location.coords.latitude,
 		longitude: location.coords.longitude,
-		akurasiMeter: location.coords.accuracy ?? null,
-		// PRD Bag. 10: deteksi mock hanya andalkan Android (`mocked` tidak ada di iOS).
+		accuracyMeters: location.coords.accuracy ?? null,
+		// PRD Bag. 10: mock detection relies on Android only (`mocked` is absent on iOS).
 		isMocked: location.mocked === true,
 		timestamp: location.timestamp,
 	};
 }
 
-/** Penanda timeout — bukan Error agar tak memicu warning LogBox. */
-const BATAS_WAKTU = Symbol("BATAS_WAKTU");
+/** Timeout marker — not an Error, so it never triggers a LogBox warning. */
+const TIMEOUT = Symbol("TIMEOUT");
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	return new Promise((resolve, reject) => {
-		const timer = setTimeout(() => reject(BATAS_WAKTU), ms);
+		const timer = setTimeout(() => reject(TIMEOUT), ms);
 		promise.then(
 			(value) => {
 				clearTimeout(timer);
@@ -79,40 +79,40 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Ambil koordinat terkini sekali pakai.
- * Presensi tetap boleh dikirim tanpa GPS (PRD Bag. 5.3.A) — pemanggil
- * cukup menangani `ok: false` sebagai "tanpa koordinat".
+ * Take one fresh coordinate reading.
+ * Attendance may still be sent without GPS (PRD Bag. 5.3.A) — callers
+ * just treat `ok: false` as "no coordinates".
  */
-export async function ambilPosisi(): Promise<HasilPosisi> {
+export async function getPosition(): Promise<PositionResult> {
 	try {
 		const servicesEnabled = await Location.hasServicesEnabledAsync();
-		if (!servicesEnabled) return { ok: false, reason: "LAYANAN_NONAKTIF" };
+		if (!servicesEnabled) return { ok: false, reason: "SERVICE_OFF" };
 
-		const izin = await mintaIzinLokasi(true);
-		if (!izin.diizinkan) return { ok: false, reason: "IZIN_DITOLAK" };
+		const permission = await requestLocationPermission(true);
+		if (!permission.granted) return { ok: false, reason: "PERMISSION_DENIED" };
 
 		const location = await withTimeout(
 			Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
 			TIMEOUT_MS,
 		);
 
-		return { ok: true, posisi: toPosisi(location) };
+		return { ok: true, position: toPosition(location) };
 	} catch (error) {
-		if (error === BATAS_WAKTU) {
-			return { ok: false, reason: "TIDAK_TERSEDIA" };
+		if (error === TIMEOUT) {
+			return { ok: false, reason: "UNAVAILABLE" };
 		}
-		return { ok: false, reason: "TIDAK_TERSEDIA" };
+		return { ok: false, reason: "UNAVAILABLE" };
 	}
 }
 
-/** Pesan peringatan untuk ditampilkan ke pengguna. */
-export function pesanGagalPosisi(reason: GagalAmbilPosisi): string {
+/** Warning message to show the user. */
+export function getPositionErrorMessage(reason: PositionFailure): string {
 	switch (reason) {
-		case "LAYANAN_NONAKTIF":
+		case "SERVICE_OFF":
 			return "Layanan lokasi perangkat sedang nonaktif. Nyalakan GPS lalu coba lagi.";
-		case "IZIN_DITOLAK":
+		case "PERMISSION_DENIED":
 			return "Izin lokasi ditolak. Aktifkan izin lokasi agar presensi dapat menyertakan koordinat.";
-		case "TIDAK_TERSEDIA":
+		case "UNAVAILABLE":
 			return "Lokasi belum berhasil didapatkan. Presensi tetap dapat dikirim tanpa koordinat.";
 	}
 }

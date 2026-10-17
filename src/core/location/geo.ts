@@ -10,8 +10,8 @@ function toRadians(degrees: number): number {
 	return (degrees * Math.PI) / 180;
 }
 
-/** Jarak antara dua koordinat dalam meter (rumus Haversine). */
-export function hitungJarakMeter(
+/** Distance between two coordinates in meters (Haversine formula). */
+export function measureDistanceMeters(
 	lat1: number,
 	lon1: number,
 	lat2: number,
@@ -27,31 +27,31 @@ export function hitungJarakMeter(
 	return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-export type TitikLokasi = {
+export type SitePoint = {
 	latitude: number | null;
 	longitude: number | null;
-	radiusMeter: number | null;
+	radiusMeters: number | null;
 };
 
 /**
- * @returns `true` = di luar radius, `false` = di dalam radius,
- *          `null` = tidak dapat dinilai (tanpa koordinat/tanpa radius).
+ * @returns `true` = outside the radius, `false` = inside the radius,
+ *          `null` = cannot judge (no coordinates/no radius).
  */
-export function validasiRadius(
-	posisi: { latitude: number | null; longitude: number | null },
-	lokasi: TitikLokasi | null | undefined,
+export function validateRadius(
+	position: { latitude: number | null; longitude: number | null },
+	site: SitePoint | null | undefined,
 ): boolean | null {
-	if (!lokasi) return null;
-	if (lokasi.latitude == null || lokasi.longitude == null) return null;
-	if (lokasi.radiusMeter == null || lokasi.radiusMeter <= 0) return null;
-	if (posisi.latitude == null || posisi.longitude == null) return null;
-	if (!Number.isFinite(posisi.latitude) || !Number.isFinite(posisi.longitude)) return null;
+	if (!site) return null;
+	if (site.latitude == null || site.longitude == null) return null;
+	if (site.radiusMeters == null || site.radiusMeters <= 0) return null;
+	if (position.latitude == null || position.longitude == null) return null;
+	if (!Number.isFinite(position.latitude) || !Number.isFinite(position.longitude)) return null;
 
-	const jarak = hitungJarakMeter(
-		posisi.latitude,
-		posisi.longitude,
-		lokasi.latitude,
-		lokasi.longitude,
+	const distance = measureDistanceMeters(
+		position.latitude,
+		position.longitude,
+		site.latitude,
+		site.longitude,
 	);
-	return jarak > lokasi.radiusMeter;
+	return distance > site.radiusMeters;
 }

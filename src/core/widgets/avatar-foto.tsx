@@ -5,34 +5,34 @@ import { tokenStore } from "@/core/storage/token-store";
 import { colors } from "@/core/theme";
 
 type Props = {
-	nama: string;
-	inisial: string;
-	/** Path berkas foto (mis. `karyawan/<id>/foto.jpg`) — null = inisial. */
-	fotoPath?: string | null;
-	ukuran?: number;
+	name: string;
+	initials: string;
+	/** Photo file path (e.g. `karyawan/<id>/foto.jpg`) — null = initials. */
+	photoPath?: string | null;
+	size?: number;
 };
 
 /**
- * Avatar foto profil (UX-3): tampilkan foto bila ada, inisial bila tidak.
- * Unduhan memakai header Bearer (rute files menolak anonim); gagal muat
- * otomatis jatuh ke inisial — juga di web (header tak didukung Image web).
+ * Profile photo avatar (UX-3): show the photo when present, initials otherwise.
+ * Downloads use the Bearer header (the files route rejects anonymous calls); load
+ * failures fall back to initials automatically — on web too (Image headers unsupported).
  */
-export function AvatarFoto({ nama, inisial, fotoPath, ukuran = 56 }: Props) {
+export function AvatarPhoto({ name, initials, photoPath, size = 56 }: Props) {
 	const [token, setToken] = useState<string | null>(null);
-	const [gagal, setGagal] = useState(false);
+	const [failed, setFailed] = useState(false);
 
 	useEffect(() => {
-		if (fotoPath) void tokenStore.get().then(setToken);
-	}, [fotoPath]);
+		if (photoPath) void tokenStore.get().then(setToken);
+	}, [photoPath]);
 
-	if (!fotoPath || gagal || !token) {
+	if (!photoPath || failed || !token) {
 		return (
 			<View
-				style={[styles.lingkar, { width: ukuran, height: ukuran, borderRadius: ukuran / 2 }]}
+				style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}
 				accessibilityRole="image"
-				accessibilityLabel={`Foto ${nama}`}
+				accessibilityLabel={`Foto ${name}`}
 			>
-				<Text style={[styles.teks, { fontSize: ukuran * 0.36 }]}>{inisial}</Text>
+				<Text style={[styles.text, { fontSize: size * 0.36 }]}>{initials}</Text>
 			</View>
 		);
 	}
@@ -40,21 +40,21 @@ export function AvatarFoto({ nama, inisial, fotoPath, ukuran = 56 }: Props) {
 	return (
 		<Image
 			source={{
-				uri: apiUrl(`/api/files/${fotoPath}`),
+				uri: apiUrl(`/api/files/${photoPath}`),
 				headers: { Authorization: `Bearer ${token}` },
 			}}
-			onError={() => setGagal(true)}
-			style={{ width: ukuran, height: ukuran, borderRadius: ukuran / 2 }}
-			accessibilityLabel={`Foto ${nama}`}
+			onError={() => setFailed(true)}
+			style={{ width: size, height: size, borderRadius: size / 2 }}
+			accessibilityLabel={`Foto ${name}`}
 		/>
 	);
 }
 
 const styles = StyleSheet.create({
-	lingkar: {
+	circle: {
 		backgroundColor: colors.primary,
 		alignItems: "center",
 		justifyContent: "center",
 	},
-	teks: { fontWeight: "800", color: colors.textInverse },
+	text: { fontWeight: "800", color: colors.textInverse },
 });

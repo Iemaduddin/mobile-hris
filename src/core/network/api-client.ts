@@ -56,9 +56,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 		});
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError" && !timeout) throw error;
-		throw new NetworkException(
-			"Tidak dapat terhubung ke server. Periksa WiFi HP & IP backend (EXPO_PUBLIC_API_URL).",
+		// Detail teknis (URL/IP backend) hanya untuk log developer — jangan tampilkan ke user.
+		console.warn(
+			"[api] Gagal terhubung:",
+			apiUrl(path),
+			error instanceof Error ? error.message : error,
 		);
+		throw new NetworkException();
 	} finally {
 		clearTimeout(timer);
 		sinyalLuar?.removeEventListener("abort", teruskanBatal);

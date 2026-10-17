@@ -46,7 +46,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	signIn: async (email, password) => {
 		const result = await loginApi(email, password);
 		if (!result.token) {
-			throw new ApiException("Login berhasil tetapi token tidak diterima.", 500);
+			console.warn("[auth] Login sukses tetapi token tidak ada di respons.");
+			throw new ApiException("Login gagal. Coba lagi.", 500);
 		}
 		// Account switch → drop the whole cache so the previous user's data never leaks.
 		queryClient.clear();

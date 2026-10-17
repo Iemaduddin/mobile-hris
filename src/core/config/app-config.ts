@@ -18,3 +18,9 @@ export const appConfig = {
 export function apiUrl(path: string): string {
 	return `${appConfig.apiUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+// Visibilitas saat dev: nilai EXPO_PUBLIC_ di-inject Metro saat `expo start` —
+// kalau IP backend berubah, restart Metro (bukan sekadar reload app).
+if (appConfig.isDev) {
+	console.log("[app-config] API base:", appConfig.apiUrl);
+}

@@ -2,57 +2,57 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { StatusChip, type ChipTone } from "@/core/widgets";
 import {
-	labelStatusPengajuan,
-	toneStatusPengajuan,
-	type JenisPengajuan,
+	getRequestStatusLabel,
+	getRequestStatusTone,
+	type RequestKind,
 } from "../models/request";
 
-export type KartuPengajuan = {
+export type RequestCardData = {
 	id: string;
-	jenis: JenisPengajuan;
+	kind: RequestKind;
 	status: string;
-	nomor?: string;
-	judul: string;
-	rentang: string;
-	keterangan?: string;
+	number?: string;
+	title: string;
+	range: string;
+	note?: string;
 };
 
-/** Satu baris daftar pengajuan (cuti/lembur/dinas) — PRD mobile Bag. 5.4. */
+/** One request list row (leave/overtime/duty) — mobile PRD Bag. 5.4. */
 export function RequestCard({
 	data,
 	onPress,
 }: {
-	data: KartuPengajuan;
+	data: RequestCardData;
 	onPress?: () => void;
 }) {
-	const tone: ChipTone = toneStatusPengajuan(data.status);
+	const tone: ChipTone = getRequestStatusTone(data.status);
 
 	return (
 		<Pressable
 			onPress={onPress}
 			disabled={!onPress}
 			accessibilityRole={onPress ? "button" : undefined}
-			accessibilityLabel={`Pengajuan ${data.judul}, status ${labelStatusPengajuan(data.status)}`}
+			accessibilityLabel={`Pengajuan ${data.title}, status ${getRequestStatusLabel(data.status)}`}
 			style={({ pressed }) => [styles.card, pressed && onPress ? styles.pressed : null]}
 		>
 			<View style={styles.head}>
-				<Text style={styles.judul} numberOfLines={1}>
-					{data.judul}
+				<Text style={styles.title} numberOfLines={1}>
+					{data.title}
 				</Text>
-				<StatusChip label={labelStatusPengajuan(data.status)} tone={tone} />
+				<StatusChip label={getRequestStatusLabel(data.status)} tone={tone} />
 			</View>
 
-			{data.nomor ? (
-				<Text style={styles.nomor} numberOfLines={1}>
-					{data.nomor}
+			{data.number ? (
+				<Text style={styles.number} numberOfLines={1}>
+					{data.number}
 				</Text>
 			) : null}
 
-			<Text style={styles.rentang}>{data.rentang}</Text>
+			<Text style={styles.range}>{data.range}</Text>
 
-			{data.keterangan ? (
-				<Text style={styles.keterangan} numberOfLines={2}>
-					{data.keterangan}
+			{data.note ? (
+				<Text style={styles.note} numberOfLines={2}>
+					{data.note}
 				</Text>
 			) : null}
 		</Pressable>
@@ -70,8 +70,8 @@ const styles = StyleSheet.create({
 	},
 	pressed: { backgroundColor: colors.backgroundAlt },
 	head: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-	judul: { flex: 1, fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-	nomor: { fontSize: fontSize.xs, color: colors.textMuted },
-	rentang: { fontSize: fontSize.sm, color: colors.text },
-	keterangan: { fontSize: fontSize.xs, color: colors.textMuted },
+	title: { flex: 1, fontSize: fontSize.md, fontWeight: "700", color: colors.text },
+	number: { fontSize: fontSize.xs, color: colors.textMuted },
+	range: { fontSize: fontSize.sm, color: colors.text },
+	note: { fontSize: fontSize.xs, color: colors.textMuted },
 });

@@ -1,17 +1,17 @@
 import { api } from "@/core/network/api-client";
-import type { SlipDetail, SlipSaya } from "../models/payslip";
+import type { MyPayslip, PayslipDetail } from "../models/payslip";
 
 /**
- * Endpoint slip gaji mobile — PRD mobile Bag. 5.5 / Bag. 6 no.15.
- * Server selalu menyaring ke `karyawanId` milik sesi login.
+ * Mobile payslip endpoints — mobile PRD Bag. 5.5 / Bag. 6 no.15.
+ * The server always scopes to the logged-in session's `karyawanId`.
  */
 
-export function getSlipSaya(signal?: AbortSignal): Promise<{ items: SlipSaya[] }> {
-	return api.get<{ items: SlipSaya[] }>("/api/v1/payslip", { signal });
+export function getMyPayslips(signal?: AbortSignal): Promise<{ items: MyPayslip[] }> {
+	return api.get<{ items: MyPayslip[] }>("/api/v1/payslip", { signal });
 }
 
-export function getSlipDetail(nomor: string, signal?: AbortSignal): Promise<{ slip: SlipDetail }> {
-	return api.get<{ slip: SlipDetail }>(`/api/v1/payslip?nomor=${encodeURIComponent(nomor)}`, {
+export function getPayslipDetail(number: string, signal?: AbortSignal): Promise<{ slip: PayslipDetail }> {
+	return api.get<{ slip: PayslipDetail }>(`/api/v1/payslip?number=${encodeURIComponent(number)}`, {
 		signal,
 	});
 }

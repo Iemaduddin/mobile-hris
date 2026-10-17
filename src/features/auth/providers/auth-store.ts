@@ -2,19 +2,19 @@ import { create } from "zustand";
 import { tokenStore } from "@/core/storage/token-store";
 import { queryClient } from "@/core/network/query-client";
 import { ApiException } from "@/core/network/api-exception";
-import { batalDaftarPush } from "@/core/notifications/push";
+import { unregisterPush } from "@/core/notifications/push";
 import { getMe, login as loginApi, logout as logoutApi } from "../data/auth-api";
-import type { SessionKaryawan, SessionUser } from "../models/session";
+import type { SessionEmployee, SessionUser } from "../models/session";
 
 /**
- * Status autentikasi global (PRD mobile Bag. 5.1).
- * Token tidak pernah masuk React state — hanya di secure store.
+ * Global auth status (mobile PRD Bag. 5.1).
+ * The token never enters React state — secure store only.
  */
 
 type AuthState = {
 	status: "loading" | "signedOut" | "signedIn";
 	user: SessionUser | null;
-	karyawan: SessionKaryawan | null;
+	employee: SessionEmployee | null;
 	initialize: () => Promise<void>;
 	signIn: (email: string, password: string) => Promise<void>;
 	signOut: () => Promise<void>;
@@ -24,22 +24,22 @@ type AuthState = {
 export const useAuthStore = create<AuthState>((set, get) => ({
 	status: "loading",
 	user: null,
-	karyawan: null,
+	employee: null,
 
-	/** Cek sesi saat aplikasi dibuka (PRD mobile Bag. 5.1 boot check). */
+	/** Session check on app boot (mobile PRD Bag. 5.1 boot check). */
 	initialize: async () => {
 		const token = await tokenStore.get();
 		if (!token) {
-			set({ status: "signedOut", user: null, karyawan: null });
+			set({ status: "signedOut", user: null, employee: null });
 			return;
 		}
 		try {
 			const me = await getMe();
-			set({ status: "signedIn", user: me.user, karyawan: me.karyawan });
+			set({ status: "signedIn", user: me.user, employee: me.employee });
 		} catch {
-			// Token kedaluwarsa/invalid → bersihkan dan minta login ulang.
+			// Expired/invalid token → wipe and ask for login again.
 			await tokenStore.clear();
-			set({ status: "signedOut", user: null, karyawan: null });
+			set({ status: "signedOut", user: null, employee: null });
 		}
 	},
 
@@ -48,34 +48,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		if (!result.token) {
 			throw new ApiException("Login berhasil tetapi token tidak diterima.", 500);
 		}
-		// Ganti akun → buang seluruh cache agar data user lama tak bocor.
+		// Account switch → drop the whole cache so the previous user's data never leaks.
 		queryClient.clear();
 		await tokenStore.set(result.token);
 		const me = await getMe();
-		set({ status: "signedIn", user: me.user, karyawan: me.karyawan });
+		set({ status: "signedIn", user: me.user, employee: me.employee });
 	},
 
 	signOut: async () => {
-		// Unregister perangkat dulu selagi token masih sah
-		// (cabut pushToken + nonaktifkan device — PRD Bag. 6 no.17).
-		await batalDaftarPush();
+		// Unregister the device while the token is still valid
+		// (revoke pushToken + deactivate device — PRD Bag. 6 no.17).
+		await unregisterPush();
 		try {
 			await logoutApi();
 		} catch {
-			// Token mungkin sudah tidak valid — tetap bersihkan lokal.
+			// Token may already be invalid — still wipe locally.
 		}
 		await tokenStore.clear();
 		queryClient.clear();
-		set({ status: "signedOut", user: null, karyawan: null });
+		set({ status: "signedOut", user: null, employee: null });
 	},
 
 	refreshMe: async () => {
 		if (get().status !== "signedIn") return;
 		try {
 			const me = await getMe();
-			set({ user: me.user, karyawan: me.karyawan });
+			set({ user: me.user, employee: me.employee });
 		} catch {
-			// biarkan state lama
+			// keep stale state
 		}
 	},
 }));

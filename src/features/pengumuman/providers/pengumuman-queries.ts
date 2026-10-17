@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPengumuman } from "../data/pengumuman-api";
+import { getAnnouncements } from "../data/pengumuman-api";
 
-export const pengumumanKeys = {
-	all: ["pengumuman"] as const,
-	daftar: () => [...pengumumanKeys.all, "daftar"] as const,
+export const announcementKeys = {
+	all: ["announcements"] as const,
+	list: () => [...announcementKeys.all, "list"] as const,
 };
 
-/** Pengumuman tayang + peristiwa minggu ini. */
-export function usePengumuman() {
+/** Live announcements + this week's events. */
+export function useAnnouncements() {
 	return useQuery({
-		queryKey: pengumumanKeys.daftar(),
-		queryFn: ({ signal }) => getPengumuman(signal),
+		queryKey: announcementKeys.list(),
+		queryFn: ({ signal }) => getAnnouncements(signal),
 	});
 }

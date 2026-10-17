@@ -1,14 +1,14 @@
 import { api } from "@/core/network/api-client";
-import type { JadwalSaya } from "../models/schedule";
+import type { MySchedule } from "../models/schedule";
 
 /**
- * Roster shift + penugasan kalender milik sendiri.
- * Default backend: 7 hari ke depan bila rentang tidak dikirim.
+ * Owned shift roster + calendar assignments.
+ * Backend default: next 7 days when no range is sent.
  */
-export function getJadwal(mulai?: string, selesai?: string, signal?: AbortSignal): Promise<JadwalSaya> {
+export function getSchedule(start?: string, end?: string, signal?: AbortSignal): Promise<MySchedule> {
 	const params = new URLSearchParams();
-	if (mulai) params.set("mulai", mulai);
-	if (selesai) params.set("selesai", selesai);
+	if (start) params.set("start", start);
+	if (end) params.set("end", end);
 	const query = params.size > 0 ? `?${params.toString()}` : "";
-	return api.get<JadwalSaya>(`/api/v1/schedule${query}`, { signal });
+	return api.get<MySchedule>(`/api/v1/schedule${query}`, { signal });
 }

@@ -1,6 +1,6 @@
-/** Kontrak data presensi — mencerminkan `/api/v1/attendance[...]` (PRD mobile Bag. 5.3). */
+/** Attendance data contracts — mirrors `/api/v1/attendance[...]` (mobile PRD Bag. 5.3). */
 
-export const TIPE_PRESENSI = [
+export const ATTENDANCE_EVENT_TYPES = [
 	"MASUK",
 	"KELUAR",
 	"MULAI_ISTIRAHAT",
@@ -9,92 +9,92 @@ export const TIPE_PRESENSI = [
 	"KEMBALI_KANTOR",
 ] as const;
 
-export type TipePresensi = (typeof TIPE_PRESENSI)[number];
+export type AttendanceEventType = (typeof ATTENDANCE_EVENT_TYPES)[number];
 
-export type EventHariIni = {
-	tipe: TipePresensi;
-	waktu: string;
-	sumber: string;
-	/** `null` = lokasi tidak dinilai (tanpa GPS / lokasi tanpa radius). */
-	diLuarRadius: boolean | null;
+export type TodayEvent = {
+	eventType: AttendanceEventType;
+	time: string;
+	source: string;
+	/** `null` = location not judged (no GPS / site without radius). */
+	isOutsideRadius: boolean | null;
 	isMocked: boolean;
 };
 
 /**
- * Respons `GET /api/v1/attendance`.
- * Saat tidak ada jadwal, backend hanya mengirim `{status: "TANPA_JADWAL", rekap: null}`.
+ * `GET /api/v1/attendance` response.
+ * Without a schedule the backend only sends `{status: "TANPA_JADWAL", recap: null}`.
  */
-export type StatusPresensiHariIni = {
+export type TodayAttendanceStatus = {
 	status: string;
-	rekap?: null;
-	telatMenit?: number | null;
-	masukAktual?: string | null;
-	keluarAktual?: string | null;
-	events?: EventHariIni[];
+	recap?: null;
+	lateMinutes?: number | null;
+	actualCheckIn?: string | null;
+	actualCheckOut?: string | null;
+	events?: TodayEvent[];
 };
 
-export type InputPresensi = {
-	tipe: TipePresensi;
-	/** Identitas perangkat untuk audit (PRD mobile Bag. 7-B5). */
+export type AttendanceInput = {
+	eventType: AttendanceEventType;
+	/** Device identity for audits (mobile PRD Bag. 7-B5). */
 	deviceId?: string;
 	deviceName?: string;
 	platform?: string;
 	latitude?: number;
 	longitude?: number;
 	isMocked?: boolean;
-	lokasiKerjaId?: string;
+	workLocationId?: string;
 };
 
-export type HasilClock = {
+export type ClockResult = {
 	message: string;
-	tipe: TipePresensi;
-	waktu: string;
-	/** `true` = di luar radius, `false` = di dalam, `null` = tidak dinilai. */
-	diLuarRadius: boolean | null;
+	eventType: AttendanceEventType;
+	time: string;
+	/** `true` = outside radius, `false` = inside, `null` = not judged. */
+	isOutsideRadius: boolean | null;
 	isMocked: boolean;
-	jarakMeter: number | null;
+	distanceMeters: number | null;
 };
 
-export type RekapHarian = {
+export type DailyRecap = {
 	id: number;
-	karyawanId: string;
-	karyawanNama: string;
-	nomorKaryawan: string;
-	tanggal: string;
+	employeeId: string;
+	employeeName: string;
+	employeeNumber: string;
+	date: string;
 	status: string;
-	telatMenit: number;
-	pulangCepatMenit: number;
-	lemburMenit: number;
-	masukAktual: string | null;
-	keluarAktual: string | null;
+	lateMinutes: number;
+	earlyLeaveMinutes: number;
+	overtimeMinutes: number;
+	actualCheckIn: string | null;
+	actualCheckOut: string | null;
 };
 
-export type RiwayatBulanan = {
-	tahun: number;
-	bulan: number;
-	items: RekapHarian[];
+export type MonthlyHistory = {
+	year: number;
+	month: number;
+	items: DailyRecap[];
 };
 
-export type EventDetail = {
-	tipe: TipePresensi;
-	waktu: string;
-	sumber: string;
+export type DayEvent = {
+	eventType: AttendanceEventType;
+	time: string;
+	source: string;
 	status: string;
-	/** `null` = lokasi tidak dinilai (tanpa GPS / lokasi tanpa radius). */
-	diLuarRadius: boolean | null;
+	/** `null` = location not judged (no GPS / site without radius). */
+	isOutsideRadius: boolean | null;
 	isMocked: boolean;
-	catatan: string | null;
+	note: string | null;
 };
 
-/** Respons `GET /api/v1/attendance/day?tanggal=YYYY-MM-DD`. */
-export type DetailHari = {
+/** `GET /api/v1/attendance/day?date=YYYY-MM-DD` response. */
+export type DayDetail = {
 	/** `YYYY-MM-DD` */
-	tanggal: string;
+	date: string;
 	status: string;
-	telatMenit: number | null;
-	pulangCepatMenit: number | null;
-	lemburMenit: number | null;
-	masukAktual: string | null;
-	keluarAktual: string | null;
-	events: EventDetail[];
+	lateMinutes: number | null;
+	earlyLeaveMinutes: number | null;
+	overtimeMinutes: number | null;
+	actualCheckIn: string | null;
+	actualCheckOut: string | null;
+	events: DayEvent[];
 };

@@ -5,148 +5,148 @@ import { AppButton } from "@/core/widgets/app-button";
 import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
 import { DateField, Field } from "@/features/requests/presentation/form-fields";
 import { ApiException } from "@/core/network/api-exception";
-import { formatTanggal } from "@/core/util/format";
-import type { TukarItem } from "../data/tukar-api";
-import { labelStatusTukar, toneStatusTukar } from "../models/tukar";
-import { useAksiTukar, useBuatTukar, usePasanganTukar, useTukarSaya } from "../providers/tukar-queries";
+import { formatDate } from "@/core/util/format";
+import type { SwapItem } from "../data/tukar-api";
+import { getSwapStatusLabel, getSwapStatusTone } from "../models/tukar";
+import { useCreateSwap, useMySwaps, useSwapAction, useSwapPartners } from "../providers/tukar-queries";
 
 /**
- * Tukar Shift — M-ESS-4. Usulan ke pasangan (tanggal sama),
- * pasangan setuju → HR final, roster ditukar atomik.
+ * Shift Swap — M-ESS-4. Proposal to a peer (same date),
+ * peer approves → HR finalizes, roster swapped atomically.
  */
 export function TukarScreen() {
-	const daftar = useTukarSaya();
-	const pasangan = usePasanganTukar();
-	const buat = useBuatTukar();
-	const aksi = useAksiTukar();
+	const list = useMySwaps();
+	const partners = useSwapPartners();
+	const create = useCreateSwap();
+	const action = useSwapAction();
 
-	const [tanggal, setTanggal] = useState("");
-	const [cari, setCari] = useState("");
-	const [pasanganId, setPasanganId] = useState("");
-	const [alasan, setAlasan] = useState("");
-	const [galat, setGalat] = useState<string | null>(null);
+	const [date, setDate] = useState("");
+	const [search, setSearch] = useState("");
+	const [partnerId, setPartnerId] = useState("");
+	const [reason, setReason] = useState("");
+	const [error, setError] = useState<string | null>(null);
 
-	const sibuk = buat.isPending || aksi.isPending;
-	const opsi = (pasangan.data ?? []).filter((o) =>
-		cari.trim() ? o.label.toLowerCase().includes(cari.trim().toLowerCase()) : true,
+	const busy = create.isPending || action.isPending;
+	const options = (partners.data ?? []).filter((o) =>
+		search.trim() ? o.label.toLowerCase().includes(search.trim().toLowerCase()) : true,
 	);
 
-	function pesanGalat(error: unknown): string {
+	function getErrorMessage(error: unknown): string {
 		return error instanceof ApiException ? error.message : "Operasi gagal. Coba lagi.";
 	}
 
-	function kirim() {
-		if (!tanggal) {
-			setGalat("Tanggal wajib diisi.");
+	function submit() {
+		if (!date) {
+			setError("Tanggal wajib diisi.");
 			return;
 		}
-		if (!pasanganId) {
-			setGalat("Pilih pasangan tukar.");
+		if (!partnerId) {
+			setError("Pilih pasangan tukar.");
 			return;
 		}
-		if (!alasan.trim()) {
-			setGalat("Alasan wajib diisi.");
+		if (!reason.trim()) {
+			setError("Alasan wajib diisi.");
 			return;
 		}
-		setGalat(null);
-		buat.mutate(
-			{ pasanganKaryawanId: pasanganId, tanggal, alasan: alasan.trim() },
+		setError(null);
+		create.mutate(
+			{ partnerEmployeeId: partnerId, date, reason: reason.trim() },
 			{
-				onSuccess: async (draf) => {
+				onSuccess: async (draft) => {
 					try {
-						await aksi.mutateAsync({ id: draf.id, aksi: "ajukan" });
+						await action.mutateAsync({ id: draft.id, action: "submit" });
 						Alert.alert("Terkirim", "Usulan diteruskan ke pasangan → HR.");
-					} catch (error) {
-						Alert.alert("Draf tersimpan", `Gagal mengajukan otomatis: ${pesanGalat(error)}`);
+					} catch (err) {
+						Alert.alert("Draf tersimpan", `Gagal mengajukan otomatis: ${getErrorMessage(err)}`);
 					}
-					setTanggal("");
-					setPasanganId("");
-					setCari("");
-					setAlasan("");
+					setDate("");
+					setPartnerId("");
+					setSearch("");
+					setReason("");
 				},
-				onError: (error) => setGalat(pesanGalat(error)),
+				onError: (err) => setError(getErrorMessage(err)),
 			},
 		);
 	}
 
-	if (daftar.isPending)
+	if (list.isPending)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Tukar Shift" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
-	if (daftar.isError && daftar.data === undefined)
+	if (list.isError && list.data === undefined)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Tukar Shift" />
-				<ErrorView message="Gagal memuat tukar shift." onRetry={() => void daftar.refetch()} />
+				<ErrorView message="Gagal memuat tukar shift." onRetry={() => void list.refetch()} />
 			</View>
 		);
 
-	const keluar = daftar.data?.keluar ?? [];
-	const masuk = daftar.data?.masuk ?? [];
+	const outgoing = list.data?.outgoing ?? [];
+	const incoming = list.data?.incoming ?? [];
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader title="Tukar Shift" subtitle="Tanggal sama · pasangan → HR" />
 			<FlatList
-				data={[{ kunci: "form" }]}
-				keyExtractor={(item) => item.kunci}
+				data={[{ key: "form" }]}
+				keyExtractor={(item) => item.key}
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={daftar.isRefetching}
-						onRefresh={() => void daftar.refetch()}
+						refreshing={list.isRefetching}
+						onRefresh={() => void list.refetch()}
 						tintColor={colors.primary}
 					/>
 				}
 				renderItem={() => (
-					<View style={styles.gapBesar}>
+					<View style={styles.bigGap}>
 						<View style={styles.form}>
-							<Text style={styles.formJudul}>Usulan Baru</Text>
+							<Text style={styles.formTitle}>Usulan Baru</Text>
 
-							<DateField label="Tanggal" value={tanggal} onChange={setTanggal} />
+							<DateField label="Tanggal" value={date} onChange={setDate} />
 
 							<Field label="Pasangan tukar">
 								<AppTextField
 									label="Cari karyawan"
-									value={cari}
-									onChangeText={(teks) => {
-										setCari(teks);
-										setPasanganId("");
+									value={search}
+									onChangeText={(text) => {
+										setSearch(text);
+										setPartnerId("");
 									}}
 									placeholder="Cari nama / nomor…"
 								/>
-								{pasangan.isPending ? (
+								{partners.isPending ? (
 									<Text style={styles.meta}>Memuat daftar karyawan…</Text>
 								) : (
-									<View style={styles.opsi}>
-										{opsi.slice(0, 8).map((o) => (
+									<View style={styles.options}>
+										{options.slice(0, 8).map((o) => (
 											<Pressable
 												key={o.value}
 												onPress={() => {
-													setPasanganId(o.value);
-													setCari(o.label);
+													setPartnerId(o.value);
+													setSearch(o.label);
 												}}
 												accessibilityRole="button"
-												style={[styles.opsiItem, pasanganId === o.value && styles.opsiAktif]}
+												style={[styles.optionItem, partnerId === o.value && styles.optionActive]}
 											>
 												<Text
-													style={[styles.opsiText, pasanganId === o.value && styles.opsiTextAktif]}
+													style={[styles.optionText, partnerId === o.value && styles.optionTextActive]}
 													numberOfLines={1}
 												>
 													{o.label}
 												</Text>
 											</Pressable>
 										))}
-										{opsi.length > 8 ? (
-											<Text style={styles.meta}>+{opsi.length - 8} lagi — persempit pencarian</Text>
-										) : opsi.length === 0 ? (
+										{options.length > 8 ? (
+											<Text style={styles.meta}>+{options.length - 8} lagi — persempit pencarian</Text>
+										) : options.length === 0 ? (
 											<Text style={styles.meta}>Tidak ketemu.</Text>
 										) : null}
 									</View>
@@ -155,32 +155,32 @@ export function TukarScreen() {
 
 							<AppTextField
 								label="Alasan"
-								value={alasan}
-								onChangeText={setAlasan}
+								value={reason}
+								onChangeText={setReason}
 								placeholder="cth. Ada acara keluarga"
 							/>
 
-							{galat ? <Text style={styles.galat}>{galat}</Text> : null}
+							{error ? <Text style={styles.error}>{error}</Text> : null}
 
-							<AppButton label="Kirim Usulan" onPress={kirim} loading={sibuk} />
+							<AppButton label="Kirim Usulan" onPress={submit} loading={busy} />
 						</View>
 
-						<Seksi
-							judul={`Masuk untuk saya (${masuk.length})`}
-							items={masuk}
-							kosong="Tidak ada usulan masuk."
-							sibuk={sibuk}
-							mode="masuk"
-							pesanGalat={pesanGalat}
+						<Section
+							title={`Masuk untuk saya (${incoming.length})`}
+							items={incoming}
+							empty="Tidak ada usulan masuk."
+							busy={busy}
+							mode="incoming"
+							getErrorMessage={getErrorMessage}
 						/>
 
-						<Seksi
-							judul={`Usulan saya (${keluar.length})`}
-							items={keluar}
-							kosong="Belum ada usulan keluar."
-							sibuk={sibuk}
-							mode="keluar"
-							pesanGalat={pesanGalat}
+						<Section
+							title={`Usulan saya (${outgoing.length})`}
+							items={outgoing}
+							empty="Belum ada usulan keluar."
+							busy={busy}
+							mode="outgoing"
+							getErrorMessage={getErrorMessage}
 						/>
 					</View>
 				)}
@@ -189,63 +189,63 @@ export function TukarScreen() {
 	);
 }
 
-function Seksi({
-	judul,
+function Section({
+	title,
 	items,
-	kosong,
-	sibuk,
+	empty,
+	busy,
 	mode,
-	pesanGalat,
+	getErrorMessage,
 }: {
-	judul: string;
-	items: TukarItem[];
-	kosong: string;
-	sibuk: boolean;
-	mode: "masuk" | "keluar";
-	pesanGalat: (error: unknown) => string;
+	title: string;
+	items: SwapItem[];
+	empty: string;
+	busy: boolean;
+	mode: "incoming" | "outgoing";
+	getErrorMessage: (error: unknown) => string;
 }) {
 	return (
-		<View style={styles.seksi}>
-			<Text style={styles.seksiJudul}>{judul}</Text>
+		<View style={styles.section}>
+			<Text style={styles.sectionTitle}>{title}</Text>
 			{items.length === 0 ? (
-				<Text style={styles.meta}>{kosong}</Text>
+				<Text style={styles.meta}>{empty}</Text>
 			) : (
 				items.map((item) => (
-					<KartuTukar key={item.id} data={item} sibuk={sibuk} mode={mode} pesanGalat={pesanGalat} />
+					<SwapCard key={item.id} data={item} busy={busy} mode={mode} getErrorMessage={getErrorMessage} />
 				))
 			)}
 		</View>
 	);
 }
 
-function KartuTukar({
+function SwapCard({
 	data,
-	sibuk,
+	busy,
 	mode,
-	pesanGalat,
+	getErrorMessage,
 }: {
-	data: TukarItem;
-	sibuk: boolean;
-	mode: "masuk" | "keluar";
-	pesanGalat: (error: unknown) => string;
+	data: SwapItem;
+	busy: boolean;
+	mode: "incoming" | "outgoing";
+	getErrorMessage: (error: unknown) => string;
 }) {
-	const aksi = useAksiTukar();
-	const [tampilTolak, setTampilTolak] = useState(false);
-	const [alasanTolak, setAlasanTolak] = useState("");
+	const action = useSwapAction();
+	const [showReject, setShowReject] = useState(false);
+	const [rejectReason, setRejectReason] = useState("");
 
-	function tolak() {
-		if (!alasanTolak.trim()) {
+	function reject() {
+		if (!rejectReason.trim()) {
 			Alert.alert("Dibatalkan", "Alasan penolakan wajib diisi.");
 			return;
 		}
-		aksi.mutate(
-			{ id: data.id, aksi: "tolak", catatan: alasanTolak.trim() },
+		action.mutate(
+			{ id: data.id, action: "reject", note: rejectReason.trim() },
 			{
 				onSuccess: () => {
-					setTampilTolak(false);
-					setAlasanTolak("");
+					setShowReject(false);
+					setRejectReason("");
 				},
-				onError: (e) => Alert.alert("Gagal", pesanGalat(e)),
+				onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
 			},
 		);
 	}
@@ -253,79 +253,79 @@ function KartuTukar({
 	return (
 		<View style={styles.card}>
 			<View style={styles.cardHead}>
-				<Text style={styles.judul} numberOfLines={1}>
-					{formatTanggal(data.tanggal)} · {data.lawanNama}
+				<Text style={styles.title} numberOfLines={1}>
+					{formatDate(data.date)} · {data.peerName}
 				</Text>
-				<StatusChip label={labelStatusTukar(data.status)} tone={toneStatusTukar(data.status)} />
+				<StatusChip label={getSwapStatusLabel(data.status)} tone={getSwapStatusTone(data.status)} />
 			</View>
 			<Text style={styles.meta}>
-				Saya: {data.shiftSaya} ⇄ Lawan: {data.shiftLawan}
+				Saya: {data.myShift} ⇄ Lawan: {data.peerShift}
 			</Text>
-			{mode === "keluar" && (data.status === "DRAFT" || data.status === "DIAJUKAN") ? (
-				<View style={styles.aksiRow}>
+			{mode === "outgoing" && (data.status === "DRAFT" || data.status === "DIAJUKAN") ? (
+				<View style={styles.actionRow}>
 					{data.status === "DRAFT" ? (
-						<View style={styles.aksiBtn}>
+						<View style={styles.actionButton}>
 							<AppButton
 								label="Ajukan"
-								loading={sibuk || aksi.isPending}
+								loading={busy || action.isPending}
 								onPress={() =>
-									aksi.mutate(
-										{ id: data.id, aksi: "ajukan" },
-										{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+									action.mutate(
+										{ id: data.id, action: "submit" },
+										{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 									)
 								}
 							/>
 						</View>
 					) : null}
-					<View style={styles.aksiBtn}>
+					<View style={styles.actionButton}>
 						<AppButton
 							label="Batalkan"
 							variant="outline"
-							loading={sibuk || aksi.isPending}
+							loading={busy || action.isPending}
 							onPress={() =>
-								aksi.mutate(
-									{ id: data.id, aksi: "batal" },
-									{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+								action.mutate(
+									{ id: data.id, action: "cancel" },
+									{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 								)
 							}
 						/>
 					</View>
 				</View>
 			) : null}
-			{mode === "masuk" && data.status === "DIAJUKAN" ? (
-				tampilTolak ? (
-					<View style={styles.tolakBox}>
+			{mode === "incoming" && data.status === "DIAJUKAN" ? (
+				showReject ? (
+					<View style={styles.rejectBox}>
 						<AppTextField
 							label="Alasan penolakan"
-							value={alasanTolak}
-							onChangeText={setAlasanTolak}
+							value={rejectReason}
+							onChangeText={setRejectReason}
 							placeholder="cth. Jadwal bentrok"
 						/>
-						<View style={styles.aksiRow}>
-							<View style={styles.aksiBtn}>
-								<AppButton label="Kirim Tolak" variant="danger" loading={aksi.isPending} onPress={tolak} />
+						<View style={styles.actionRow}>
+							<View style={styles.actionButton}>
+								<AppButton label="Kirim Tolak" variant="danger" loading={action.isPending} onPress={reject} />
 							</View>
-							<View style={styles.aksiBtn}>
-								<AppButton label="Batal" variant="outline" onPress={() => setTampilTolak(false)} />
+							<View style={styles.actionButton}>
+								<AppButton label="Batal" variant="outline" onPress={() => setShowReject(false)} />
 							</View>
 						</View>
 					</View>
 				) : (
-					<View style={styles.aksiRow}>
-						<View style={styles.aksiBtn}>
+					<View style={styles.actionRow}>
+						<View style={styles.actionButton}>
 							<AppButton
 								label="Setuju"
-								loading={sibuk || aksi.isPending}
+								loading={busy || action.isPending}
 								onPress={() =>
-									aksi.mutate(
-										{ id: data.id, aksi: "setuju" },
-										{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+									action.mutate(
+										{ id: data.id, action: "approve" },
+										{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 									)
 								}
 							/>
 						</View>
-						<View style={styles.aksiBtn}>
-							<AppButton label="Tolak" variant="danger" onPress={() => setTampilTolak(true)} />
+						<View style={styles.actionButton}>
+							<AppButton label="Tolak" variant="danger" onPress={() => setShowReject(true)} />
 						</View>
 					</View>
 				)
@@ -335,9 +335,9 @@ function KartuTukar({
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
-	gapBesar: { gap: spacing.lg },
+	bigGap: { gap: spacing.lg },
 	form: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -346,9 +346,9 @@ const styles = StyleSheet.create({
 		padding: spacing.md,
 		gap: spacing.xs,
 	},
-	formJudul: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-	opsi: { gap: spacing.xs, marginTop: spacing.xs },
-	opsiItem: {
+	formTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
+	options: { gap: spacing.xs, marginTop: spacing.xs },
+	optionItem: {
 		minHeight: TOUCH_MIN,
 		justifyContent: "center",
 		paddingHorizontal: spacing.md,
@@ -357,12 +357,12 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		backgroundColor: colors.surface,
 	},
-	opsiAktif: { backgroundColor: colors.primary, borderColor: colors.primary },
-	opsiText: { fontSize: fontSize.sm, color: colors.text },
-	opsiTextAktif: { color: colors.textInverse, fontWeight: "700" },
-	galat: { fontSize: fontSize.xs, color: colors.danger },
-	seksi: { gap: spacing.sm },
-	seksiJudul: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	optionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+	optionText: { fontSize: fontSize.sm, color: colors.text },
+	optionTextActive: { color: colors.textInverse, fontWeight: "700" },
+	error: { fontSize: fontSize.xs, color: colors.danger },
+	section: { gap: spacing.sm },
+	sectionTitle: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
 	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -372,9 +372,9 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 	},
 	cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	judul: { flex: 1, fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	title: { flex: 1, fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
 	meta: { fontSize: fontSize.xs, color: colors.textMuted },
-	aksiRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-	aksiBtn: { flex: 1 },
-	tolakBox: { gap: spacing.sm, marginTop: spacing.xs },
+	actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+	actionButton: { flex: 1 },
+	rejectBox: { gap: spacing.sm, marginTop: spacing.xs },
 });

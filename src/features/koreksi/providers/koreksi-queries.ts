@@ -1,40 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buatKoreksi, getKoreksiSaya, ubahStatusKoreksi, type InputKoreksi } from "../data/koreksi-api";
+import { createCorrection, getMyCorrections, updateCorrectionStatus, type CorrectionInput } from "../data/koreksi-api";
 
-export const koreksiKeys = {
-	all: ["koreksi"] as const,
-	daftar: () => [...koreksiKeys.all, "daftar"] as const,
+export const correctionKeys = {
+	all: ["corrections"] as const,
+	list: () => [...correctionKeys.all, "list"] as const,
 };
 
-/** Daftar koreksi milik sendiri. */
-export function useKoreksiSaya() {
+/** Owned correction list. */
+export function useMyCorrections() {
 	return useQuery({
-		queryKey: koreksiKeys.daftar(),
-		queryFn: ({ signal }) => getKoreksiSaya(signal),
+		queryKey: correctionKeys.list(),
+		queryFn: ({ signal }) => getMyCorrections(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Buat draf koreksi. */
-export function useBuatKoreksi() {
+/** Create a correction draft. */
+export function useCreateCorrection() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (input: InputKoreksi) => buatKoreksi(input),
+		mutationFn: (input: CorrectionInput) => createCorrection(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: koreksiKeys.all });
+			void queryClient.invalidateQueries({ queryKey: correctionKeys.all });
 		},
 	});
 }
 
-/** Ajukan / batalkan koreksi. */
-export function useAksiKoreksi() {
+/** Submit / cancel a correction. */
+export function useCorrectionAction() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, aksi }: { id: string; aksi: "ajukan" | "batal" }) => ubahStatusKoreksi(id, aksi),
+		mutationFn: ({ id, action }: { id: string; action: "submit" | "cancel" }) => updateCorrectionStatus(id, action),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: koreksiKeys.all });
+			void queryClient.invalidateQueries({ queryKey: correctionKeys.all });
 		},
 	});
 }

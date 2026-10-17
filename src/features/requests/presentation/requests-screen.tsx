@@ -3,140 +3,140 @@ import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
-import { formatTanggal } from "@/core/util/format";
+import { formatDate } from "@/core/util/format";
 import { AppButton } from "@/core/widgets/app-button";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import {
-	useCutiList,
-	useDinasList,
-	useLemburList,
-	useSaldoCuti,
+	useDutyRequests,
+	useLeaveBalance,
+	useLeaveRequests,
+	useOvertimeRequests,
 } from "../providers/requests-queries";
 import {
-	daftarJenisPengajuan,
+	REQUEST_KINDS,
 	FILTER_STATUS,
-	labelJenisPengajuan,
-	type JenisPengajuan,
-	type PengajuanCuti,
-	type PengajuanDinas,
-	type PengajuanLembur,
+	getRequestKindLabel,
+	type DutyRequest,
+	type LeaveRequest,
+	type OvertimeRequest,
+	type RequestKind,
 } from "../models/request";
-import { RequestCard, type KartuPengajuan } from "./request-card";
+import { RequestCard, type RequestCardData } from "./request-card";
 
-const TAHUN = new Date().getFullYear();
+const CURRENT_YEAR = new Date().getFullYear();
 
-const BATAS_AWAL = 20;
-const TAMBAH_BATAS = 20;
+const INITIAL_LIMIT = 20;
+const LIMIT_STEP = 20;
 
-function keKartuCuti(x: PengajuanCuti): KartuPengajuan {
+function toLeaveCard(x: LeaveRequest): RequestCardData {
 	return {
 		id: x.id,
-		jenis: "cuti",
+		kind: "leave",
 		status: x.status,
-		nomor: x.nomor,
-		judul: x.jenisNama,
-		rentang: `${formatTanggal(x.mulai)} – ${formatTanggal(x.selesai)}`,
-		keterangan: `${x.jumlahHari} hari${x.menggunakanSaldo ? " · memakai saldo" : ""}`,
+		number: x.number,
+		title: x.leaveTypeName,
+		range: `${formatDate(x.startDate)} – ${formatDate(x.endDate)}`,
+		note: `${x.totalDays} hari${x.usesBalance ? " · memakai saldo" : ""}`,
 	};
 }
 
-function keKartuLembur(x: PengajuanLembur): KartuPengajuan {
+function toOvertimeCard(x: OvertimeRequest): RequestCardData {
 	return {
 		id: x.id,
-		jenis: "lembur",
+		kind: "overtime",
 		status: x.status,
-		judul: "Lembur",
-		rentang: `${formatTanggal(x.tanggal)} · ${x.jamMulai}–${x.jamSelesai}`,
-		keterangan: `${x.jumlahJam} jam · ${x.alasan}`,
+		title: "Lembur",
+		range: `${formatDate(x.date)} · ${x.startTime}–${x.endTime}`,
+		note: `${x.totalHours} jam · ${x.reason}`,
 	};
 }
 
-function keKartuDinas(x: PengajuanDinas): KartuPengajuan {
+function toDutyCard(x: DutyRequest): RequestCardData {
 	return {
 		id: x.id,
-		jenis: "dinas",
+		kind: "duty",
 		status: x.status,
-		nomor: x.nomor,
-		judul: x.jenis === "WFH" ? "WFH" : "Dinas Luar",
-		rentang: `${formatTanggal(x.mulai)} – ${formatTanggal(x.selesai)}`,
-		keterangan: x.lokasi ?? undefined,
+		number: x.number,
+		title: x.dutyType === "WFH" ? "WFH" : "Dinas Luar",
+		range: `${formatDate(x.startDate)} – ${formatDate(x.endDate)}`,
+		note: x.location ?? undefined,
 	};
 }
 
 /**
- * Tab Pengajuan — daftar cuti/lembur/dinas + saldo (PRD mobile Bag. 5.4).
- * Layar buat & detail ditumpuk di `src/app/requests/`.
+ * Requests tab — leave/overtime/duty lists + balance (mobile PRD Bag. 5.4).
+ * Create & detail screens live stacked under `src/app/requests/`.
  */
 export function RequestsScreen() {
-	const [jenis, setJenis] = useState<JenisPengajuan>("cuti");
+	const [kind, setKind] = useState<RequestKind>("leave");
 	const [status, setStatus] = useState("");
-	const [batas, setBatas] = useState(BATAS_AWAL);
+	const [limit, setLimit] = useState(INITIAL_LIMIT);
 
-	const saldo = useSaldoCuti(TAHUN);
-	const cutiQ = useCutiList(status);
-	const lemburQ = useLemburList(status);
-	const dinasQ = useDinasList(status);
+	const balance = useLeaveBalance(CURRENT_YEAR);
+	const leaveQuery = useLeaveRequests(status);
+	const overtimeQuery = useOvertimeRequests(status);
+	const dutyQuery = useDutyRequests(status);
 
-	function pilihJenis(j: JenisPengajuan) {
-		setJenis(j);
-		setBatas(BATAS_AWAL);
+	function selectKind(k: RequestKind) {
+		setKind(k);
+		setLimit(INITIAL_LIMIT);
 	}
 
-	function pilihStatus(s: string) {
+	function selectStatus(s: string) {
 		setStatus(s);
-		setBatas(BATAS_AWAL);
+		setLimit(INITIAL_LIMIT);
 	}
 
-	const aktif = jenis === "cuti" ? cutiQ : jenis === "lembur" ? lemburQ : dinasQ;
+	const active = kind === "leave" ? leaveQuery : kind === "overtime" ? overtimeQuery : dutyQuery;
 
-	if (aktif.isPending)
+	if (active.isPending)
 		return (
 			<SafeAreaView style={styles.safe} edges={["top"]}>
-				<SkeletonLayar jumlah={5} />
+				<ScreenSkeleton count={5} />
 			</SafeAreaView>
 		);
-	if (aktif.isError && aktif.data === undefined)
-		return <ErrorView message="Gagal memuat daftar pengajuan." onRetry={() => void aktif.refetch()} />;
+	if (active.isError && active.data === undefined)
+		return <ErrorView message="Gagal memuat daftar pengajuan." onRetry={() => void active.refetch()} />;
 
-	const kartu =
-		jenis === "cuti"
-			? (cutiQ.data ?? []).map(keKartuCuti)
-			: jenis === "lembur"
-				? (lemburQ.data ?? []).map(keKartuLembur)
-				: (dinasQ.data ?? []).map(keKartuDinas);
+	const cards =
+		kind === "leave"
+			? (leaveQuery.data ?? []).map(toLeaveCard)
+			: kind === "overtime"
+				? (overtimeQuery.data ?? []).map(toOvertimeCard)
+				: (dutyQuery.data ?? []).map(toDutyCard);
 
-	const kartuTampil = kartu.slice(0, batas);
-	const sisa = kartu.length - kartuTampil.length;
+	const visibleCards = cards.slice(0, limit);
+	const remaining = cards.length - visibleCards.length;
 
 	return (
 		<SafeAreaView style={styles.safe} edges={["top"]}>
 			<FlatList
-				data={kartuTampil}
+				data={visibleCards}
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={aktif.isRefetching}
-						onRefresh={() => void aktif.refetch()}
+						refreshing={active.isRefetching}
+						onRefresh={() => void active.refetch()}
 						tintColor={colors.primary}
 					/>
 				}
 				ListHeaderComponent={
 					<View style={styles.head}>
 						<Text style={styles.title}>Pengajuan</Text>
-						<SaldoCard rows={saldo.data?.saldo ?? []} loading={saldo.isPending} />
+						<BalanceCard rows={balance.data?.balance ?? []} loading={balance.isPending} />
 						<View style={styles.segmented}>
-							{daftarJenisPengajuan.map((j) => (
+							{REQUEST_KINDS.map((k) => (
 								<Pressable
-									key={j}
-									onPress={() => pilihJenis(j)}
+									key={k}
+									onPress={() => selectKind(k)}
 									accessibilityRole="tab"
-									accessibilityState={{ selected: jenis === j }}
-									style={[styles.seg, jenis === j ? styles.segActive : null]}
+									accessibilityState={{ selected: kind === k }}
+									style={[styles.seg, kind === k ? styles.segActive : null]}
 								>
-									<Text style={[styles.segText, jenis === j ? styles.segTextActive : null]}>
-										{labelJenisPengajuan(j)}
+									<Text style={[styles.segText, kind === k ? styles.segTextActive : null]}>
+										{getRequestKindLabel(k)}
 									</Text>
 								</Pressable>
 							))}
@@ -149,7 +149,7 @@ export function RequestsScreen() {
 							{FILTER_STATUS.map((f) => (
 								<Pressable
 									key={f.value}
-									onPress={() => pilihStatus(f.value)}
+									onPress={() => selectStatus(f.value)}
 									accessibilityRole="button"
 									style={[styles.chip, status === f.value ? styles.chipActive : null]}
 								>
@@ -165,7 +165,7 @@ export function RequestsScreen() {
 				}
 				ListEmptyComponent={
 					<EmptyView
-						message={`Belum ada pengajuan ${labelJenisPengajuan(jenis).toLowerCase()}${
+						message={`Belum ada pengajuan ${getRequestKindLabel(kind).toLowerCase()}${
 							status ? " dengan filter ini" : ""
 						}.`}
 					/>
@@ -174,18 +174,18 @@ export function RequestsScreen() {
 					<RequestCard
 						data={item}
 						onPress={() =>
-							router.push({ pathname: "/requests/detail", params: { id: item.id, jenis: item.jenis } })
+							router.push({ pathname: "/requests/detail", params: { id: item.id, kind: item.kind } })
 						}
 					/>
 				)}
 				ItemSeparatorComponent={() => <View style={styles.gap} />}
 				ListFooterComponent={
-					sisa > 0 ? (
-						<View style={styles.muatLagi}>
+					remaining > 0 ? (
+						<View style={styles.loadMore}>
 							<AppButton
-								label={`Muat lagi (${sisa} tersisa)`}
+								label={`Muat lagi (${remaining} tersisa)`}
 								variant="outline"
-								onPress={() => setBatas((b) => b + TAMBAH_BATAS)}
+								onPress={() => setLimit((b) => b + LIMIT_STEP)}
 							/>
 						</View>
 					) : null
@@ -194,29 +194,29 @@ export function RequestsScreen() {
 			<View style={styles.footer}>
 				<AppButton
 					label="Buat Baru"
-					onPress={() => router.push({ pathname: "/requests/new", params: { jenis } })}
+					onPress={() => router.push({ pathname: "/requests/new", params: { kind } })}
 				/>
 			</View>
 		</SafeAreaView>
 	);
 }
 
-function SaldoCard({
+function BalanceCard({
 	rows,
 	loading,
 }: {
-	rows: { jenisNama: string; saldoAkhir: string; tahun: number }[];
+	rows: { leaveTypeName: string; closingBalance: string; year: number }[];
 	loading: boolean;
 }) {
 	if (loading || rows.length === 0) return null;
 
 	return (
-		<View style={styles.saldoCard}>
-			<Text style={styles.saldoTitle}>Sisa saldo cuti {rows[0].tahun}</Text>
+		<View style={styles.balanceCard}>
+			<Text style={styles.balanceTitle}>Sisa saldo cuti {rows[0].year}</Text>
 			{rows.map((r) => (
-				<View key={r.jenisNama} style={styles.saldoRow}>
-					<Text style={styles.saldoNama}>{r.jenisNama}</Text>
-					<Text style={styles.saldoNilai}>{r.saldoAkhir} hari</Text>
+				<View key={r.leaveTypeName} style={styles.balanceRow}>
+					<Text style={styles.balanceName}>{r.leaveTypeName}</Text>
+					<Text style={styles.balanceValue}>{r.closingBalance} hari</Text>
 				</View>
 			))}
 		</View>
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
 	head: { gap: spacing.md, marginBottom: spacing.sm },
 	title: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
 
-	saldoCard: {
+	balanceCard: {
 		backgroundColor: colors.primaryLight,
 		borderRadius: radius.md,
 		borderWidth: 1,
@@ -237,10 +237,10 @@ const styles = StyleSheet.create({
 		padding: spacing.md,
 		gap: spacing.xs,
 	},
-	saldoTitle: { fontSize: fontSize.xs, fontWeight: "700", color: colors.primaryDark },
-	saldoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-	saldoNama: { fontSize: fontSize.sm, color: colors.text },
-	saldoNilai: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primaryDark },
+	balanceTitle: { fontSize: fontSize.xs, fontWeight: "700", color: colors.primaryDark },
+	balanceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+	balanceName: { fontSize: fontSize.sm, color: colors.text },
+	balanceValue: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primaryDark },
 
 	segmented: {
 		flexDirection: "row",
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
 	chipTextActive: { color: colors.textInverse },
 
 	gap: { height: spacing.sm },
-	muatLagi: { paddingVertical: spacing.sm },
+	loadMore: { paddingVertical: spacing.sm },
 	footer: {
 		paddingHorizontal: spacing.xl,
 		paddingTop: spacing.sm,

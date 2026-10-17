@@ -2,23 +2,24 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "rea
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { ScreenHeader } from "@/core/widgets/screen-header";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
-import { formatRupiah, labelPeriode, type SlipSaya } from "../models/payslip";
-import { useSlipList } from "../providers/payslip-queries";
+import { formatIDR } from "@/core/util/format";
+import { getPeriodLabel, type MyPayslip } from "../models/payslip";
+import { usePayslipList } from "../providers/payslip-queries";
 
 /**
- * Daftar slip gaji milik sendiri (PRD mobile Bag. 5.5).
- * Hanya periode yang sudah DITERBITKAN yang muncul — disaring server.
+ * Owned payslip list (mobile PRD Bag. 5.5).
+ * Only published periods appear — filtered server-side.
  */
 export function PayslipListScreen() {
-	const slips = useSlipList();
+	const slips = usePayslipList();
 
 	if (slips.isPending)
 		return (
 			<View style={styles.wrap}>
 				<ScreenHeader title="Slip Gaji" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (slips.isError && slips.data === undefined)
@@ -29,7 +30,7 @@ export function PayslipListScreen() {
 			<ScreenHeader title="Slip Gaji" />
 			<FlatList
 				data={slips.data ?? []}
-				keyExtractor={(item) => item.nomor}
+				keyExtractor={(item) => item.number}
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
@@ -46,21 +47,21 @@ export function PayslipListScreen() {
 	);
 }
 
-function SlipCard({ slip }: { slip: SlipSaya }) {
+function SlipCard({ slip }: { slip: MyPayslip }) {
 	return (
 		<Pressable
-			onPress={() => router.push({ pathname: "/payslip/detail", params: { nomor: slip.nomor } })}
+			onPress={() => router.push({ pathname: "/payslip/detail", params: { number: slip.number } })}
 			accessibilityRole="button"
-			accessibilityLabel={`Slip gaji ${labelPeriode(slip.periode)}`}
+			accessibilityLabel={`Slip gaji ${getPeriodLabel(slip.period)}`}
 			style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
 		>
 			<View style={styles.cardLeft}>
-				<Text style={styles.periode}>{labelPeriode(slip.periode)}</Text>
-				<Text style={styles.nomor}>{slip.nomor}</Text>
+				<Text style={styles.period}>{getPeriodLabel(slip.period)}</Text>
+				<Text style={styles.number}>{slip.number}</Text>
 			</View>
 			<View style={styles.cardRight}>
-				<Text style={styles.bersih}>{formatRupiah(slip.gajiBersih)}</Text>
-				<Text style={styles.arsip}>Lihat rincian ›</Text>
+				<Text style={styles.net}>{formatIDR(slip.netPay)}</Text>
+				<Text style={styles.open}>Lihat rincian ›</Text>
 			</View>
 		</Pressable>
 	);
@@ -83,9 +84,9 @@ const styles = StyleSheet.create({
 	cardPressed: { backgroundColor: colors.backgroundAlt },
 	cardLeft: { flex: 1, gap: spacing.xs },
 	cardRight: { alignItems: "flex-end", gap: spacing.xs },
-	periode: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-	nomor: { fontSize: fontSize.xs, color: colors.textMuted },
-	bersih: { fontSize: fontSize.lg, fontWeight: "700", color: colors.success },
-	arsip: { fontSize: fontSize.xs, color: colors.primary },
+	period: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
+	number: { fontSize: fontSize.xs, color: colors.textMuted },
+	net: { fontSize: fontSize.lg, fontWeight: "700", color: colors.success },
+	open: { fontSize: fontSize.xs, color: colors.primary },
 	gap: { height: spacing.sm },
 });

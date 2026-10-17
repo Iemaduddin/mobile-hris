@@ -1,41 +1,41 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
-import { formatTanggalPanjang } from "@/core/util/format";
+import { formatLongDate } from "@/core/util/format";
 import { ScreenHeader } from "@/core/widgets/screen-header";
-import { AvatarFoto } from "@/core/widgets/avatar-foto";
+import { AvatarPhoto } from "@/core/widgets/avatar-foto";
 import { ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
 import {
-	inisial,
-	labelGender,
-	labelJenisKontrak,
-	labelStatusKontrak,
-	type Profil,
+	getInitials,
+	getGenderLabel,
+	getContractTypeLabel,
+	getContractStatusLabel,
+	type Profile,
 } from "../models/profile";
-import { useProfil } from "../providers/profile-queries";
+import { useProfile } from "../providers/profile-queries";
 
-type Baris = { label: string; nilai: string | null };
+type Row = { label: string; value: string | null };
 
 /**
- * Profil Saya (PRD mobile Bag. 5.6) — read-only.
- * NIK/NPWP sudah di-mask server-side, jadi tidak perlu disamarkan lagi di sini.
+ * My Profile (mobile PRD Bag. 5.6) — read-only.
+ * NIK/NPWP arrive server-masked, no further redaction needed here.
  */
 export function ProfileScreen() {
-	const profil = useProfil();
+	const profile = useProfile();
 
-	if (profil.isPending)
+	if (profile.isPending)
 		return (
 			<View style={styles.wrap}>
 				<ScreenHeader title="Profil Saya" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
-	if (profil.isError || !profil.data)
+	if (profile.isError || !profile.data)
 		return (
 			<View style={styles.wrap}>
 				<ScreenHeader title="Profil Saya" />
-				<ErrorView message="Gagal memuat profil." onRetry={() => void profil.refetch()} />
+				<ErrorView message="Gagal memuat profil." onRetry={() => void profile.refetch()} />
 			</View>
 		);
 
@@ -46,133 +46,133 @@ export function ProfileScreen() {
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={profil.isFetching}
-						onRefresh={() => void profil.refetch()}
+						refreshing={profile.isFetching}
+						onRefresh={() => void profile.refetch()}
 						tintColor={colors.primary}
 					/>
 				}
 			>
-				<Kepala profil={profil.data} />
+				<Header profile={profile.data} />
 
-				<Bagian judul="Identitas">
-					{identitasBaris(profil.data).map((r) => (
-						<BarisProfil key={r.label} label={r.label} nilai={r.nilai} />
+				<Section title="Identitas">
+					{identityRows(profile.data).map((r) => (
+						<ProfileRow key={r.label} label={r.label} value={r.value} />
 					))}
-				</Bagian>
+				</Section>
 
-				<Bagian judul="Kontak">
-					{kontakBaris(profil.data).map((r) => (
-						<BarisProfil key={r.label} label={r.label} nilai={r.nilai} />
+				<Section title="Kontak">
+					{contactRows(profile.data).map((r) => (
+						<ProfileRow key={r.label} label={r.label} value={r.value} />
 					))}
-				</Bagian>
+				</Section>
 
-				<Bagian judul="Penempatan Aktif">
-					{penempatanBaris(profil.data).map((r) => (
-						<BarisProfil key={r.label} label={r.label} nilai={r.nilai} />
+				<Section title="Penempatan Aktif">
+					{placementRows(profile.data).map((r) => (
+						<ProfileRow key={r.label} label={r.label} value={r.value} />
 					))}
-				</Bagian>
+				</Section>
 
-				<Bagian judul="Kontrak Kerja">
-					{kontrakBaris(profil.data).map((r) => (
-						<BarisProfil key={r.label} label={r.label} nilai={r.nilai} />
+				<Section title="Kontrak Kerja">
+					{contractRows(profile.data).map((r) => (
+						<ProfileRow key={r.label} label={r.label} value={r.value} />
 					))}
-				</Bagian>
+				</Section>
 			</ScrollView>
 		</View>
 	);
 }
 
-function Kepala({ profil }: { profil: Profil }) {
+function Header({ profile }: { profile: Profile }) {
 	return (
-		<View style={styles.kepala}>
-			<AvatarFoto nama={profil.namaLengkap} inisial={inisial(profil.namaLengkap)} fotoPath={profil.fotoUrl} ukuran={72} />
-			<Text style={styles.nama}>{profil.namaLengkap}</Text>
-			<Text style={styles.nomor}>{profil.nomorKaryawan}</Text>
+		<View style={styles.header}>
+			<AvatarPhoto name={profile.fullName} initials={getInitials(profile.fullName)} photoPath={profile.photoUrl} size={72} />
+			<Text style={styles.name}>{profile.fullName}</Text>
+			<Text style={styles.number}>{profile.employeeNumber}</Text>
 			<StatusChip
-				label={profil.status.replace(/_/g, " ")}
-				tone={profil.status === "AKTIF" ? "success" : profil.status === "PROBASI" ? "info" : "muted"}
+				label={profile.status.replace(/_/g, " ")}
+				tone={profile.status === "AKTIF" ? "success" : profile.status === "PROBASI" ? "info" : "muted"}
 			/>
 		</View>
 	);
 }
 
-function Bagian({ judul, children }: { judul: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (
-		<View style={styles.bagian}>
-			<Text style={styles.bagianJudul}>{judul}</Text>
+		<View style={styles.section}>
+			<Text style={styles.sectionTitle}>{title}</Text>
 			<View style={styles.card}>{children}</View>
 		</View>
 	);
 }
 
-function BarisProfil({ label, nilai }: { label: string; nilai: string | null }) {
+function ProfileRow({ label, value }: { label: string; value: string | null }) {
 	return (
-		<View style={styles.baris}>
-			<Text style={styles.barisLabel}>{label}</Text>
-			<Text style={[styles.barisNilai, !nilai && styles.barisKosong]} numberOfLines={2}>
-				{nilai && nilai.trim().length > 0 ? nilai : "—"}
+		<View style={styles.row}>
+			<Text style={styles.rowLabel}>{label}</Text>
+			<Text style={[styles.rowValue, !value && styles.rowEmpty]} numberOfLines={2}>
+				{value && value.trim().length > 0 ? value : "—"}
 			</Text>
 		</View>
 	);
 }
 
-function identitasBaris(p: Profil): Baris[] {
+function identityRows(p: Profile): Row[] {
 	return [
-		{ label: "Jenis kelamin", nilai: labelGender(p.gender) },
-		{ label: "Tanggal lahir", nilai: p.tanggalLahir ? formatTanggalPanjang(p.tanggalLahir) : null },
-		{ label: "NIK", nilai: p.nik },
-		{ label: "NPWP", nilai: p.npwp },
-		{ label: "Tanggal masuk", nilai: formatTanggalPanjang(p.tanggalMasuk) },
-		{ label: "Tanggal resign", nilai: p.tanggalResign ? formatTanggalPanjang(p.tanggalResign) : null },
+		{ label: "Jenis kelamin", value: getGenderLabel(p.gender) },
+		{ label: "Tanggal lahir", value: p.birthDate ? formatLongDate(p.birthDate) : null },
+		{ label: "NIK", value: p.nik },
+		{ label: "NPWP", value: p.npwp },
+		{ label: "Tanggal masuk", value: formatLongDate(p.joinDate) },
+		{ label: "Tanggal resign", value: p.resignDate ? formatLongDate(p.resignDate) : null },
 		{
 			label: "Atasan langsung",
-			nilai: p.atasanLangsung
-				? `${p.atasanLangsung.namaLengkap} (${p.atasanLangsung.nomorKaryawan})`
+			value: p.directManager
+				? `${p.directManager.fullName} (${p.directManager.employeeNumber})`
 				: null,
 		},
 	];
 }
 
-function kontakBaris(p: Profil): Baris[] {
+function contactRows(p: Profile): Row[] {
 	return [
-		{ label: "Email", nilai: p.email },
-		{ label: "Telepon", nilai: p.telepon },
-		{ label: "Alamat", nilai: p.alamat },
+		{ label: "Email", value: p.email },
+		{ label: "Telepon", value: p.phone },
+		{ label: "Alamat", value: p.address },
 	];
 }
 
-function penempatanBaris(p: Profil): Baris[] {
-	const lokasi = p.penempatan?.lokasi ?? null;
-	const alamatLokasi = lokasi
-		? [lokasi.alamat, lokasi.kota, lokasi.provinsi].filter(Boolean).join(", ")
+function placementRows(p: Profile): Row[] {
+	const site = p.placement?.location ?? null;
+	const siteAddress = site
+		? [site.address, site.city, site.province].filter(Boolean).join(", ")
 		: null;
 
 	return [
-		{ label: "Posisi", nilai: p.penempatan?.posisi ?? null },
-		{ label: "Unit organisasi", nilai: p.penempatan?.unitOrganisasi ?? null },
+		{ label: "Posisi", value: p.placement?.position ?? null },
+		{ label: "Unit organisasi", value: p.placement?.orgUnit ?? null },
 		{
 			label: "Berlaku sejak",
-			nilai: p.penempatan?.tanggalEfektif ? formatTanggalPanjang(p.penempatan.tanggalEfektif) : null,
+			value: p.placement?.effectiveDate ? formatLongDate(p.placement.effectiveDate) : null,
 		},
-		{ label: "Lokasi kerja", nilai: lokasi?.nama ?? null },
-		{ label: "Alamat lokasi", nilai: alamatLokasi },
-		{ label: "Radius absensi", nilai: lokasi?.radiusMeter ? `${lokasi.radiusMeter} m` : null },
+		{ label: "Lokasi kerja", value: site?.name ?? null },
+		{ label: "Alamat lokasi", value: siteAddress },
+		{ label: "Radius absensi", value: site?.radiusMeters ? `${site.radiusMeters} m` : null },
 	];
 }
 
-function kontrakBaris(p: Profil): Baris[] {
-	if (!p.kontrak) return [{ label: "Kontrak", nilai: null }];
+function contractRows(p: Profile): Row[] {
+	if (!p.contract) return [{ label: "Kontrak", value: null }];
 	return [
-		{ label: "Nomor kontrak", nilai: p.kontrak.nomorKontrak },
-		{ label: "Jenis", nilai: labelJenisKontrak(p.kontrak.jenisKontrak) },
-		{ label: "Status", nilai: labelStatusKontrak(p.kontrak.status) },
+		{ label: "Nomor kontrak", value: p.contract.contractNumber },
+		{ label: "Jenis", value: getContractTypeLabel(p.contract.contractType) },
+		{ label: "Status", value: getContractStatusLabel(p.contract.status) },
 		{
 			label: "Mulai",
-			nilai: p.kontrak.tanggalMulai ? formatTanggalPanjang(p.kontrak.tanggalMulai) : null,
+			value: p.contract.startDate ? formatLongDate(p.contract.startDate) : null,
 		},
 		{
 			label: "Selesai",
-			nilai: p.kontrak.tanggalSelesai ? formatTanggalPanjang(p.kontrak.tanggalSelesai) : "Tidak terbatas",
+			value: p.contract.endDate ? formatLongDate(p.contract.endDate) : "Tidak terbatas",
 		},
 	];
 }
@@ -181,12 +181,12 @@ const styles = StyleSheet.create({
 	wrap: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
 
-	kepala: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-	nama: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text, textAlign: "center" },
-	nomor: { fontSize: fontSize.sm, color: colors.textMuted },
+	header: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.sm },
+	name: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text, textAlign: "center" },
+	number: { fontSize: fontSize.sm, color: colors.textMuted },
 
-	bagian: { gap: spacing.xs },
-	bagianJudul: {
+	section: { gap: spacing.xs },
+	sectionTitle: {
 		fontSize: fontSize.xs,
 		fontWeight: "700",
 		color: colors.textMuted,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		paddingHorizontal: spacing.md,
 	},
-	baris: {
+	row: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "space-between",
@@ -210,12 +210,12 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: colors.border,
 	},
-	barisLabel: { fontSize: fontSize.sm, color: colors.textMuted, flex: 1 },
-	barisNilai: {
+	rowLabel: { fontSize: fontSize.sm, color: colors.textMuted, flex: 1 },
+	rowValue: {
 		fontSize: fontSize.sm,
 		color: colors.text,
 		textAlign: "right",
 		flex: 1.2,
 	},
-	barisKosong: { color: colors.disabled },
+	rowEmpty: { color: colors.disabled },
 });

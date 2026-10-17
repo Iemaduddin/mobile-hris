@@ -1,3 +1,3 @@
-import JadwalScreen from "@/features/schedule/presentation/schedule-screen";
+import ScheduleScreen from "@/features/schedule/presentation/schedule-screen";
 
-export default JadwalScreen;
+export default ScheduleScreen;

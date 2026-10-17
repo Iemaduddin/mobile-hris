@@ -1,16 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { getProfil } from "../data/profile-api";
+import { getMyProfile } from "../data/profile-api";
 
-export const profilKeys = {
-	all: ["profil"] as const,
-	utama: () => [...profilKeys.all, "utama"] as const,
+export const profileKeys = {
+	all: ["profile"] as const,
+	main: () => [...profileKeys.all, "main"] as const,
 };
 
-/** Profil lengkap (read-only) — kontak, penempatan aktif, kontrak aktif. */
-export function useProfil() {
+/** Full profile (read-only) — contacts, active placement, active contract. */
+export function useProfile() {
 	return useQuery({
-		queryKey: profilKeys.utama(),
-		queryFn: ({ signal }) => getProfil(signal),
-		select: (data) => data.profil,
+		queryKey: profileKeys.main(),
+		queryFn: ({ signal }) => getMyProfile(signal),
+		select: (data) => data.profile,
 	});
 }

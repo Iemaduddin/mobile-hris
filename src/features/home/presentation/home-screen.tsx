@@ -3,68 +3,69 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { formatJam, formatTanggal, labelStatusRekap, toneStatusRekap } from "@/core/util/format";
+import { formatTime, formatDate, getAttendanceStatusLabel, getAttendanceStatusTone } from "@/core/util/format";
 import { AppButton } from "@/core/widgets/app-button";
-import { AvatarFoto } from "@/core/widgets/avatar-foto";
+import { AvatarPhoto } from "@/core/widgets/avatar-foto";
 import { Skeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
-import { labelPenempatan } from "@/features/auth/models/session";
-import { labelStatusPengajuan, toneStatusPengajuan } from "@/features/requests/models/request";
-import { inisial } from "@/features/profile/models/profile";
+import { getPlacementLabel } from "@/features/auth/models/session";
+import { getRequestStatusLabel, getRequestStatusTone } from "@/features/requests/models/request";
+import { getInitials } from "@/features/profile/models/profile";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
-import { useStatusHariIni } from "@/features/attendance/providers/attendance-queries";
+import { useTodayStatus } from "@/features/attendance/providers/attendance-queries";
 import {
-	useCutiList,
-	useDinasList,
-	useLemburList,
-	useSaldoCuti,
+	useDutyRequests,
+	useLeaveBalance,
+	useLeaveRequests,
+	useOvertimeRequests,
 } from "@/features/requests/providers/requests-queries";
-import { useSlipList } from "@/features/payslip/providers/payslip-queries";
-import { formatRupiah, labelPeriode } from "@/features/payslip/models/payslip";
+import { usePayslipList } from "@/features/payslip/providers/payslip-queries";
+import { formatIDR } from "@/core/util/format";
+import { getPeriodLabel } from "@/features/payslip/models/payslip";
 
-const TAHUN = new Date().getFullYear();
+const CURRENT_YEAR = new Date().getFullYear();
 
-/** Status yang masih berjalan (belum diputuskan). */
-const STATUS_BERJALAN = new Set(["DRAFT", "DIAJUKAN", "MENUNGGU_APPROVAL"]);
+/** Statuses still in flight (undecided). */
+const ACTIVE_STATUSES = new Set(["DRAFT", "DIAJUKAN", "MENUNGGU_APPROVAL"]);
 
-type KartuProps = {
-	judul: string;
-	sub?: string;
-	tekan?: () => void;
+type CardProps = {
+	title: string;
+	subtitle?: string;
+	onPress?: () => void;
 	children?: React.ReactNode;
 };
 
 /**
- * Beranda / Dashboard ESS (PRD mobile Bag. 5.2).
- * Komposisi dari endpoint yang sudah ada: presensi hari ini, sisa cuti,
- * pengajuan berjalan, dan slip gaji terakhir — semua milik sendiri.
+ * ESS Home / Dashboard (mobile PRD Bag. 5.2).
+ * Composed from existing endpoints: today's attendance, leave balance,
+ * in-flight requests, and the latest payslip — all self-owned.
  */
 export function HomeScreen() {
 	const user = useAuthStore((s) => s.user);
-	const karyawan = useAuthStore((s) => s.karyawan);
+	const employee = useAuthStore((s) => s.employee);
 
-	const presensi = useStatusHariIni();
-	const saldo = useSaldoCuti(TAHUN);
-	const cuti = useCutiList();
-	const lembur = useLemburList();
-	const dinas = useDinasList();
-	const slip = useSlipList();
+	const attendance = useTodayStatus();
+	const balance = useLeaveBalance(CURRENT_YEAR);
+	const leave = useLeaveRequests();
+	const overtime = useOvertimeRequests();
+	const duty = useDutyRequests();
+	const payslips = usePayslipList();
 
-	const semua = [presensi, saldo, cuti, lembur, dinas, slip];
-	const memuat = semua.some((q) => q.isPending);
-	const refetchSemua = () => {
-		void Promise.all(semua.map((q) => q.refetch()));
+	const queries = [attendance, balance, leave, overtime, duty, payslips];
+	const loading = queries.some((q) => q.isPending);
+	const refetchAll = () => {
+		void Promise.all(queries.map((q) => q.refetch()));
 	};
 
-	const penempatan = labelPenempatan(karyawan);
-	const status = presensi.data?.status ?? null;
-	const masuk = presensi.data?.masukAktual;
-	const keluar = presensi.data?.keluarAktual;
+	const placement = getPlacementLabel(employee);
+	const status = attendance.data?.status ?? null;
+	const checkIn = attendance.data?.actualCheckIn;
+	const checkOut = attendance.data?.actualCheckOut;
 
-	const berjalan = [ ...(cuti.data ?? []), ...(lembur.data ?? []), ...(dinas.data ?? []) ].filter(
-		(x) => STATUS_BERJALAN.has(x.status),
+	const activeRequests = [ ...(leave.data ?? []), ...(overtime.data ?? []), ...(duty.data ?? []) ].filter(
+		(x) => ACTIVE_STATUSES.has(x.status),
 	);
-	const slipTerakhir = slip.data?.[0] ?? null;
+	const latestSlip = payslips.data?.[0] ?? null;
 
 	return (
 		<SafeAreaView style={styles.safe} edges={["top"]}>
@@ -72,8 +73,8 @@ export function HomeScreen() {
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={!memuat && presensi.isRefetching}
-						onRefresh={refetchSemua}
+						refreshing={!loading && attendance.isRefetching}
+						onRefresh={refetchAll}
 						tintColor={colors.primary}
 					/>
 				}
@@ -84,104 +85,104 @@ export function HomeScreen() {
 					accessibilityRole="button"
 					accessibilityLabel="Buka profil saya"
 				>
-					<AvatarFoto
-						nama={karyawan?.namaLengkap ?? user?.name ?? "-"}
-						inisial={inisial(karyawan?.namaLengkap ?? user?.name ?? "-")}
-						fotoPath={karyawan?.fotoUrl}
-						ukuran={76}
+					<AvatarPhoto
+						name={employee?.fullName ?? user?.name ?? "-"}
+						initials={getInitials(employee?.fullName ?? user?.name ?? "-")}
+						photoPath={employee?.photoUrl}
+						size={76}
 					/>
 				</Pressable>
 				<View style={styles.heroText}>
-					<Text style={styles.nama} numberOfLines={1}>
-						{karyawan?.namaLengkap ?? user?.name ?? "-"}
+					<Text style={styles.name} numberOfLines={1}>
+						{employee?.fullName ?? user?.name ?? "-"}
 					</Text>
 					<View style={styles.metaRow}>
 						<Ionicons name="calendar-outline" size={13} color={colors.primaryDark} />
-						<Text style={styles.tanggal}>{formatTanggal(new Date())}</Text>
+						<Text style={styles.date}>{formatDate(new Date())}</Text>
 					</View>
-					{penempatan ? (
+					{placement ? (
 						<View style={styles.metaRow}>
 							<Ionicons name="briefcase-outline" size={13} color={colors.primaryDark} />
-							<Text style={styles.penempatan} numberOfLines={1}>
-								{penempatan}
+							<Text style={styles.placement} numberOfLines={1}>
+								{placement}
 							</Text>
 						</View>
 					) : null}
 				</View>
 			</View>
 
-				<Kartu judul="Presensi hari ini" tekan={() => router.push("/attendance")}>
+				<Card title="Presensi hari ini" onPress={() => router.push("/attendance")}>
 					{status ? (
 						<>
-							<StatusChip label={labelStatusRekap(status)} tone={toneStatusRekap(status)} />
-							<Text style={styles.jam}>
-								{masuk ? formatJam(masuk) : "--:--"} – {keluar ? formatJam(keluar) : "--:--"}
+							<StatusChip label={getAttendanceStatusLabel(status)} tone={getAttendanceStatusTone(status)} />
+							<Text style={styles.time}>
+								{checkIn ? formatTime(checkIn) : "--:--"} – {checkOut ? formatTime(checkOut) : "--:--"}
 							</Text>
 						</>
-					) : presensi.isPending ? (
+					) : attendance.isPending ? (
 						<>
-							<Skeleton lebar="40%" tinggi={20} />
-							<Skeleton lebar="60%" />
+							<Skeleton width="40%" height={20} />
+							<Skeleton width="60%" />
 						</>
 					) : (
-						<Text style={styles.jam}>Status belum tersedia.</Text>
+						<Text style={styles.time}>Status belum tersedia.</Text>
 					)}
-				</Kartu>
+				</Card>
 
-				<Kartu judul={`Sisa saldo cuti ${TAHUN}`}>
-					{saldo.data?.saldo.length ? (
-						saldo.data.saldo.map((s) => (
-							<View key={s.id} style={styles.baris}>
-								<Text style={styles.barisLabel}>{s.jenisNama}</Text>
-								<Text style={styles.barisNilai}>{s.saldoAkhir} hari</Text>
+				<Card title={`Sisa saldo cuti ${CURRENT_YEAR}`}>
+					{balance.data?.balance.length ? (
+						balance.data.balance.map((s) => (
+							<View key={s.id} style={styles.row}>
+								<Text style={styles.rowLabel}>{s.leaveTypeName}</Text>
+								<Text style={styles.rowValue}>{s.closingBalance} hari</Text>
 							</View>
 						))
-					) : saldo.isPending ? (
+					) : balance.isPending ? (
 						<>
-							<Skeleton lebar="80%" />
-							<Skeleton lebar="65%" />
+							<Skeleton width="80%" />
+							<Skeleton width="65%" />
 						</>
 					) : (
-						<Text style={styles.jam}>Belum ada saldo cuti.</Text>
+						<Text style={styles.time}>Belum ada saldo cuti.</Text>
 					)}
-				</Kartu>
+				</Card>
 
-				<Kartu
-					judul="Pengajuan berjalan"
-					sub={berjalan.length > 0 ? `${berjalan.length} pengajuan` : undefined}
-					tekan={() => router.push("/requests")}
+				<Card
+					title="Pengajuan berjalan"
+					subtitle={activeRequests.length > 0 ? `${activeRequests.length} pengajuan` : undefined}
+					onPress={() => router.push("/requests")}
 				>
-					{berjalan.length > 0 ? (
+					{activeRequests.length > 0 ? (
 						<View style={styles.chipRow}>
 							<StatusChip
-								label={labelStatusPengajuan(berjalan[0].status)}
-								tone={toneStatusPengajuan(berjalan[0].status)}
+								label={getRequestStatusLabel(activeRequests[0].status)}
+								tone={getRequestStatusTone(activeRequests[0].status)}
 							/>
-							<Text style={styles.jam}>terakhir</Text>
+							<Text style={styles.time}>terakhir</Text>
 						</View>
 					) : (
-						<Text style={styles.jam}>Tidak ada pengajuan berjalan.</Text>
+						<Text style={styles.time}>Tidak ada pengajuan berjalan.</Text>
 					)}
-				</Kartu>
+				</Card>
 
-				<Kartu
-					judul="Slip gaji terakhir"
-					sub={slipTerakhir ? labelPeriode(slipTerakhir.periode) : undefined}
-					tekan={() => router.push("/payslip")}
+				<Card
+					title="Slip gaji terakhir"
+					subtitle={latestSlip ? getPeriodLabel(latestSlip.period) : undefined}
+					onPress={() => router.push("/payslip")}
 				>
-					{slipTerakhir ? (
-						<Text style={styles.slipNilai}>{formatRupiah(slipTerakhir.gajiBersih)}</Text>
-					) : slip.isPending ? (
-						<Skeleton lebar="50%" tinggi={22} />
+					{latestSlip ? (
+						<Text style={styles.slipValue}>{formatIDR(latestSlip.netPay)}</Text>
+					) : payslips.isPending ? (
+						<Skeleton width="50%" height={22} />
 					) : (
-						<Text style={styles.jam}>Belum ada slip gaji terbit.</Text>
+						<Text style={styles.time}>Belum ada slip gaji terbit.</Text>
 					)}
-				</Kartu>
+				</Card>
 
-				<View style={styles.aksi}>
-					<Aksi icon="calendar-outline" label="Jadwal" onPress={() => router.push("/schedule")} />
-					<Aksi icon="document-text-outline" label="Slip Gaji" onPress={() => router.push("/payslip")} />
-					<Aksi icon="person-outline" label="Profil" onPress={() => router.push("/profile")} />
+				<View style={styles.quickActions}>
+					<QuickAction icon="calendar-outline" label="Jadwal" onPress={() => router.push("/schedule")} />
+					<QuickAction icon="document-text-outline" label="Slip Gaji" onPress={() => router.push("/payslip")} />
+					<QuickAction icon="person-outline" label="Profil" onPress={() => router.push("/profile")} />
 				</View>
 
 				<AppButton
@@ -194,33 +195,33 @@ export function HomeScreen() {
 	);
 }
 
-function Kartu({ judul, sub, tekan, children }: KartuProps) {
-	const isi = (
-		<View style={styles.kartu}>
-			<View style={styles.kartuHead}>
-				<Text style={styles.kartuJudul}>{judul}</Text>
-				{sub ? <Text style={styles.kartuSub}>{sub}</Text> : null}
+function Card({ title, subtitle, onPress, children }: CardProps) {
+	const body = (
+		<View style={styles.card}>
+			<View style={styles.cardHead}>
+				<Text style={styles.cardTitle}>{title}</Text>
+				{subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
 			</View>
 			<View>{children}</View>
-			{tekan ? <Text style={styles.kartuAksi}>Lihat ›</Text> : null}
+			{onPress ? <Text style={styles.cardAction}>Lihat ›</Text> : null}
 		</View>
 	);
 
-	if (!tekan) return isi;
+	if (!onPress) return body;
 
 	return (
 		<Pressable
-			onPress={tekan}
+			onPress={onPress}
 			accessibilityRole="button"
-			accessibilityLabel={judul}
-			style={({ pressed }) => [pressed && styles.kartuPressed]}
+			accessibilityLabel={title}
+			style={({ pressed }) => [pressed && styles.cardPressed]}
 		>
-			{isi}
+			{body}
 		</Pressable>
 	);
 }
 
-function Aksi({
+function QuickAction({
 	icon,
 	label,
 	onPress,
@@ -234,10 +235,10 @@ function Aksi({
 			onPress={onPress}
 			accessibilityRole="button"
 			accessibilityLabel={label}
-			style={({ pressed }) => [styles.aksiItem, pressed && styles.kartuPressed]}
+			style={({ pressed }) => [styles.quickActionItem, pressed && styles.cardPressed]}
 		>
 			<Ionicons name={icon} size={22} color={colors.primary} />
-			<Text style={styles.aksiLabel}>{label}</Text>
+			<Text style={styles.quickActionLabel}>{label}</Text>
 		</Pressable>
 	);
 }
@@ -246,7 +247,6 @@ const styles = StyleSheet.create({
 	safe: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
 
-	sapaan: { gap: 2, marginBottom: spacing.sm },
 	hero: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -259,13 +259,12 @@ const styles = StyleSheet.create({
 		marginBottom: spacing.sm,
 	},
 	heroText: { flex: 1, gap: 2 },
-	halo: { fontSize: fontSize.sm, color: colors.textMuted },
-	nama: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
+	name: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
 	metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 2 },
-	tanggal: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "600" },
-	penempatan: { flex: 1, fontSize: fontSize.xs, color: colors.primaryDark },
+	date: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "600" },
+	placement: { flex: 1, fontSize: fontSize.xs, color: colors.primaryDark },
 
-	kartu: {
+	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
 		borderWidth: 1,
@@ -273,22 +272,22 @@ const styles = StyleSheet.create({
 		padding: spacing.lg,
 		gap: spacing.sm,
 	},
-	kartuPressed: { backgroundColor: colors.backgroundAlt },
-	kartuHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	kartuJudul: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
-	kartuSub: { fontSize: fontSize.xs, color: colors.textMuted },
-	kartuAksi: { fontSize: fontSize.xs, color: colors.primary, fontWeight: "600" },
+	cardPressed: { backgroundColor: colors.backgroundAlt },
+	cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+	cardTitle: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	cardSubtitle: { fontSize: fontSize.xs, color: colors.textMuted },
+	cardAction: { fontSize: fontSize.xs, color: colors.primary, fontWeight: "600" },
 
 	chipRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-	jam: { fontSize: fontSize.sm, color: colors.textMuted },
-	slipNilai: { fontSize: fontSize.lg, fontWeight: "700", color: colors.success },
+	time: { fontSize: fontSize.sm, color: colors.textMuted },
+	slipValue: { fontSize: fontSize.lg, fontWeight: "700", color: colors.success },
 
-	baris: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	barisLabel: { fontSize: fontSize.sm, color: colors.text },
-	barisNilai: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primaryDark },
+	row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+	rowLabel: { fontSize: fontSize.sm, color: colors.text },
+	rowValue: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primaryDark },
 
-	aksi: { flexDirection: "row", gap: spacing.sm },
-	aksiItem: {
+	quickActions: { flexDirection: "row", gap: spacing.sm },
+	quickActionItem: {
 		flex: 1,
 		minHeight: TOUCH_MIN + 12,
 		alignItems: "center",
@@ -300,6 +299,5 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		paddingVertical: spacing.md,
 	},
-	aksiLabel: { fontSize: fontSize.xs, color: colors.text, fontWeight: "600" },
+	quickActionLabel: { fontSize: fontSize.xs, color: colors.text, fontWeight: "600" },
 });
-

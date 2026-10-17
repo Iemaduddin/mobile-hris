@@ -2,27 +2,27 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { useLocalSearchParams } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { ErrorView, ScreenHeader } from "@/core/widgets";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
-import { formatJam, formatTanggalPanjang, labelStatusRekap, labelTipePresensi, toneStatusRekap } from "@/core/util/format";
-import { useDetailHari } from "../providers/attendance-queries";
+import { formatTime, formatLongDate, getAttendanceStatusLabel, getPresenceTypeLabel, getAttendanceStatusTone } from "@/core/util/format";
+import { useDayDetail } from "../providers/attendance-queries";
 
 /**
- * Detail presensi satu hari (PRD mobile Bag. 5.3.C):
- * rekap status + daftar event lengkap dengan flag radius/GPS simulasi.
+ * One-day attendance detail (mobile PRD Bag. 5.3.C):
+ * status recap + full event list with radius/mock-GPS flags.
  */
-export default function DetailHariScreen() {
-	const { tanggal } = useLocalSearchParams<{ tanggal: string }>();
-	const nilai = typeof tanggal === "string" ? tanggal : "";
+export default function DayDetailScreen() {
+	const { date } = useLocalSearchParams<{ date: string }>();
+	const value = typeof date === "string" ? date : "";
 
-	const { data, isLoading, isError, isFetching, refetch } = useDetailHari(nilai);
+	const { data, isLoading, isError, isFetching, refetch } = useDayDetail(value);
 
 	return (
 		<>
-			<ScreenHeader title="Detail Presensi" subtitle={nilai || undefined} />
+			<ScreenHeader title="Detail Presensi" subtitle={value || undefined} />
 
 			{isLoading ? (
-				<SkeletonLayar jumlah={2} judul={false} />
+				<ScreenSkeleton count={2} showTitle={false} />
 			) : isError || !data ? (
 				<ErrorView message="Gagal memuat detail presensi." onRetry={() => void refetch()} />
 			) : (
@@ -37,48 +37,48 @@ export default function DetailHariScreen() {
 					}
 				>
 					<View style={styles.card}>
-						<Text style={styles.tanggal}>{formatTanggalPanjang(data.tanggal)}</Text>
+						<Text style={styles.date}>{formatLongDate(data.date)}</Text>
 						<View style={styles.chipWrap}>
-							<StatusChip label={labelStatusRekap(data.status)} tone={toneStatusRekap(data.status)} />
+							<StatusChip label={getAttendanceStatusLabel(data.status)} tone={getAttendanceStatusTone(data.status)} />
 						</View>
 
 						<View style={styles.grid}>
-							<Stat label="Masuk" value={formatJam(data.masukAktual)} />
-							<Stat label="Pulang" value={formatJam(data.keluarAktual)} />
+							<Stat label="Masuk" value={formatTime(data.actualCheckIn)} />
+							<Stat label="Pulang" value={formatTime(data.actualCheckOut)} />
 							<Stat
 								label="Telat"
-								value={(data.telatMenit ?? 0) > 0 ? `${data.telatMenit} m` : "-"}
-								warna={(data.telatMenit ?? 0) > 0 ? colors.warning : undefined}
+								value={(data.lateMinutes ?? 0) > 0 ? `${data.lateMinutes} m` : "-"}
+								color={(data.lateMinutes ?? 0) > 0 ? colors.warning : undefined}
 							/>
 							<Stat
 								label="Pulang Cepat"
-								value={(data.pulangCepatMenit ?? 0) > 0 ? `${data.pulangCepatMenit} m` : "-"}
+								value={(data.earlyLeaveMinutes ?? 0) > 0 ? `${data.earlyLeaveMinutes} m` : "-"}
 							/>
-							<Stat label="Lembur" value={(data.lemburMenit ?? 0) > 0 ? `${data.lemburMenit} m` : "-"} />
+							<Stat label="Lembur" value={(data.overtimeMinutes ?? 0) > 0 ? `${data.overtimeMinutes} m` : "-"} />
 						</View>
 					</View>
 
 					<View style={styles.card}>
 						<Text style={styles.cardLabel}>Event</Text>
 						{data.events.length === 0 ? (
-							<Text style={styles.kosong}>Tidak ada event presensi pada tanggal ini.</Text>
+							<Text style={styles.empty}>Tidak ada event presensi pada tanggal ini.</Text>
 						) : (
 							data.events.map((event) => (
 								<View
-									key={`${event.tipe}-${event.waktu}`}
-									style={[styles.event, event.status === "DIBATALKAN" && styles.eventBatal]}
+									key={`${event.eventType}-${event.time}`}
+									style={[styles.event, event.status === "DIBATALKAN" && styles.eventCancelled]}
 								>
 									<View style={{ flex: 1 }}>
-										<Text style={styles.eventTipe}>{labelTipePresensi(event.tipe)}</Text>
+										<Text style={styles.eventType}>{getPresenceTypeLabel(event.eventType)}</Text>
 										<Text style={styles.eventMeta}>
-											{formatJam(event.waktu)} · {event.sumber} · {event.status}
+											{formatTime(event.time)} · {event.source} · {event.status}
 										</Text>
-										{event.catatan ? (
-											<Text style={styles.eventCatatan}>{event.catatan}</Text>
+										{event.note ? (
+											<Text style={styles.eventNote}>{event.note}</Text>
 										) : null}
 									</View>
 									<View style={styles.flags}>
-										{event.diLuarRadius === true ? (
+										{event.isOutsideRadius === true ? (
 											<Text style={[styles.flag, styles.flagDanger]}>Luar radius</Text>
 										) : null}
 										{event.isMocked ? (
@@ -95,11 +95,11 @@ export default function DetailHariScreen() {
 	);
 }
 
-function Stat({ label, value, warna }: { label: string; value: string; warna?: string }) {
+function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
 	return (
 		<View style={styles.stat}>
 			<Text style={styles.statLabel}>{label}</Text>
-			<Text style={[styles.statValue, warna ? { color: warna } : null]}>{value}</Text>
+			<Text style={[styles.statValue, color ? { color } : null]}>{value}</Text>
 		</View>
 	);
 }
@@ -120,14 +120,14 @@ const styles = StyleSheet.create({
 		color: colors.textMuted,
 		textTransform: "uppercase",
 	},
-	tanggal: { fontSize: fontSize.sm, color: colors.textMuted },
+	date: { fontSize: fontSize.sm, color: colors.textMuted },
 	chipWrap: { alignItems: "flex-start" },
 	grid: { flexDirection: "row", flexWrap: "wrap", marginTop: spacing.sm },
 	stat: { width: "33.33%", gap: 2, paddingVertical: spacing.sm },
 	statLabel: { fontSize: fontSize.xs, color: colors.textMuted },
 	statValue: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
 
-	kosong: { fontSize: fontSize.sm, color: colors.textMuted },
+	empty: { fontSize: fontSize.sm, color: colors.textMuted },
 	event: {
 		flexDirection: "row",
 		alignItems: "flex-start",
@@ -136,10 +136,10 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: colors.border,
 	},
-	eventBatal: { opacity: 0.5 },
-	eventTipe: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
+	eventCancelled: { opacity: 0.5 },
+	eventType: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
 	eventMeta: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
-	eventCatatan: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic", marginTop: 2 },
+	eventNote: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic", marginTop: 2 },
 	flags: { flexDirection: "row", gap: spacing.xs, flexWrap: "wrap", justifyContent: "flex-end" },
 	flag: {
 		fontSize: fontSize.xs,

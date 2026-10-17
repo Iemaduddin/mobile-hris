@@ -1,58 +1,58 @@
-export type PenempatanProfil = {
-	posisi: string | null;
-	unitOrganisasi: string | null;
-	tanggalEfektif: string | null;
-	tanggalBerakhir: string | null;
-	lokasi: {
-		nama: string;
-		alamat: string | null;
-		kota: string | null;
-		provinsi: string | null;
-		kodePos: string | null;
+export type ProfilePlacement = {
+	position: string | null;
+	orgUnit: string | null;
+	effectiveDate: string | null;
+	endDate: string | null;
+	location: {
+		name: string;
+		address: string | null;
+		city: string | null;
+		province: string | null;
+		postalCode: string | null;
 		latitude: number | null;
 		longitude: number | null;
-		radiusMeter: number | null;
+		radiusMeters: number | null;
 	} | null;
 };
 
-export type Profil = {
-	nomorKaryawan: string;
-	namaLengkap: string;
+export type Profile = {
+	employeeNumber: string;
+	fullName: string;
 	gender: string;
-	tanggalLahir: string | null;
-	/** Sudah di-mask oleh server (mis. 3273••••••1234) sesuai PRD Bag. 8. */
+	birthDate: string | null;
+	/** Already masked server-side (e.g. 3273••••••1234) per PRD Bag. 8. */
 	nik: string | null;
 	npwp: string | null;
-	/** Path berkas foto (dokumen FOTO terakhir) — null bila belum ada. */
-	fotoUrl?: string | null;
-	telepon: string | null;
+	/** Photo file path (latest FOTO document) — null when absent. */
+	photoUrl?: string | null;
+	phone: string | null;
 	email: string | null;
-	alamat: string | null;
+	address: string | null;
 	status: string;
-	tanggalMasuk: string;
-	tanggalResign: string | null;
+	joinDate: string;
+	resignDate: string | null;
 	role: string | null;
-	atasanLangsung: {
-		namaLengkap: string;
-		nomorKaryawan: string;
-		posisi: string | null;
+	directManager: {
+		fullName: string;
+		employeeNumber: string;
+		position: string | null;
 	} | null;
-	penempatan: PenempatanProfil | null;
-	kontrak: {
-		nomorKontrak: string;
-		jenisKontrak: string;
-		tanggalMulai: string | null;
-		tanggalSelesai: string | null;
+	placement: ProfilePlacement | null;
+	contract: {
+		contractNumber: string;
+		contractType: string;
+		startDate: string | null;
+		endDate: string | null;
 		status: string;
 	} | null;
 };
 
-const LABEL_GENDER: Record<string, string> = {
+const GENDER_LABELS: Record<string, string> = {
 	LAKI_LAKI: "Laki-laki",
 	PEREMPUAN: "Perempuan",
 };
 
-const LABEL_KONTRAK: Record<string, string> = {
+const CONTRACT_LABELS: Record<string, string> = {
 	PKWT: "PKWT (kontrak terbatas)",
 	PKWTT: "PKWTT (tetap)",
 	MAGANG: "Magang",
@@ -60,7 +60,7 @@ const LABEL_KONTRAK: Record<string, string> = {
 	OUTSOURCING: "Outsourcing",
 };
 
-const LABEL_STATUS_KONTRAK: Record<string, string> = {
+const CONTRACT_STATUS_LABELS: Record<string, string> = {
 	DRAFT: "Draf",
 	AKTIF: "Aktif",
 	AKAN_BERAKHIR: "Akan berakhir",
@@ -68,24 +68,24 @@ const LABEL_STATUS_KONTRAK: Record<string, string> = {
 	DIBATALKAN: "Dibatalkan",
 };
 
-export function labelGender(gender: string): string {
-	return LABEL_GENDER[gender] ?? gender;
+export function getGenderLabel(gender: string): string {
+	return GENDER_LABELS[gender] ?? gender;
 }
 
-export function labelJenisKontrak(jenis: string): string {
-	return LABEL_KONTRAK[jenis] ?? jenis;
+export function getContractTypeLabel(contractType: string): string {
+	return CONTRACT_LABELS[contractType] ?? contractType;
 }
 
-export function labelStatusKontrak(status: string): string {
-	return LABEL_STATUS_KONTRAK[status] ?? status;
+export function getContractStatusLabel(status: string): string {
+	return CONTRACT_STATUS_LABELS[status] ?? status;
 }
 
-/** Inisial untuk avatar (maks. 2 huruf pertama tiap kata). */
-export function inisial(nama: string): string {
-	return nama
+/** Avatar initials (max. first 2 letters of each word). */
+export function getInitials(name: string): string {
+	return name
 		.split(/\s+/)
 		.filter(Boolean)
 		.slice(0, 2)
-		.map((kata) => kata[0]?.toUpperCase() ?? "")
+		.map((word) => word[0]?.toUpperCase() ?? "")
 		.join("");
 }

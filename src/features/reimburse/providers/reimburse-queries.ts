@@ -1,45 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	buatReimburse,
-	getReimburseSaya,
-	ubahStatusReimburse,
-	type InputReimburse,
+	createReimbursement,
+	getMyReimbursements,
+	updateReimbursementStatus,
+	type ReimbursementInput,
 } from "../data/reimburse-api";
 
-export const reimburseKeys = {
-	all: ["reimburse"] as const,
-	daftar: () => [...reimburseKeys.all, "daftar"] as const,
+export const reimbursementKeys = {
+	all: ["reimbursements"] as const,
+	list: () => [...reimbursementKeys.all, "list"] as const,
 };
 
-/** Daftar klaim milik sendiri. */
-export function useReimburseSaya() {
+/** Owned claim list. */
+export function useMyReimbursements() {
 	return useQuery({
-		queryKey: reimburseKeys.daftar(),
-		queryFn: ({ signal }) => getReimburseSaya(signal),
+		queryKey: reimbursementKeys.list(),
+		queryFn: ({ signal }) => getMyReimbursements(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Buat draf klaim (foto sudah diunggah dulu oleh layar). */
-export function useBuatReimburse() {
+/** Create a claim draft (photo already uploaded by the screen). */
+export function useCreateReimbursement() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (input: InputReimburse) => buatReimburse(input),
+		mutationFn: (input: ReimbursementInput) => createReimbursement(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: reimburseKeys.all });
+			void queryClient.invalidateQueries({ queryKey: reimbursementKeys.all });
 		},
 	});
 }
 
-/** Ajukan / batalkan klaim. */
-export function useAksiReimburse() {
+/** Submit / cancel a claim. */
+export function useReimbursementAction() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, aksi }: { id: string; aksi: "ajukan" | "batal" }) => ubahStatusReimburse(id, aksi),
+		mutationFn: ({ id, action }: { id: string; action: "submit" | "cancel" }) => updateReimbursementStatus(id, action),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: reimburseKeys.all });
+			void queryClient.invalidateQueries({ queryKey: reimbursementKeys.all });
 		},
 	});
 }

@@ -1,117 +1,117 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	buatCuti,
-	buatDinas,
-	buatLembur,
-	getCutiList,
-	getDinasList,
-	getJenisList,
-	getLemburList,
-	getSaldoCuti,
+	createDuty,
+	createLeave,
+	createOvertime,
+	getAbsenceTypes,
+	getDutyRequests,
+	getLeaveBalance,
+	getLeaveRequests,
+	getOvertimeRequests,
 	getTimeline,
-	ubahStatusCuti,
-	ubahStatusDinas,
-	ubahStatusLembur,
-	unggahLampiran,
-	type BerkasPilihan,
-	type InputCuti,
-	type InputDinas,
-	type InputLembur,
+	updateDutyStatus,
+	updateLeaveStatus,
+	updateOvertimeStatus,
+	uploadAttachment,
+	type DutyInput,
+	type LeaveInput,
+	type OvertimeInput,
+	type PickedFile,
 } from "../data/requests-api";
 import type {
-	AksiPengajuan,
-	HasilAksiPengajuan,
-	JenisPengajuan,
+	RequestAction,
+	RequestActionResult,
+	RequestKind,
 } from "../models/request";
 
 export const requestKeys = {
-	all: ["pengajuan"] as const,
-	jenis: () => [...requestKeys.all, "jenis"] as const,
-	saldo: (tahun: number) => [...requestKeys.all, "saldo", tahun] as const,
-	cuti: (status?: string) => [...requestKeys.all, "cuti", status ?? "semua"] as const,
-	lembur: (status?: string) => [...requestKeys.all, "lembur", status ?? "semua"] as const,
-	dinas: (status?: string) => [...requestKeys.all, "dinas", status ?? "semua"] as const,
-	timeline: (jenis: JenisPengajuan, id: string) =>
-		[...requestKeys.all, "timeline", jenis, id] as const,
+	all: ["requests"] as const,
+	absenceTypes: () => [...requestKeys.all, "absence-types"] as const,
+	balance: (year: number) => [...requestKeys.all, "balance", year] as const,
+	leave: (status?: string) => [...requestKeys.all, "leave", status ?? "all"] as const,
+	overtime: (status?: string) => [...requestKeys.all, "overtime", status ?? "all"] as const,
+	duty: (status?: string) => [...requestKeys.all, "duty", status ?? "all"] as const,
+	timeline: (kind: RequestKind, id: string) =>
+		[...requestKeys.all, "timeline", kind, id] as const,
 };
 
-/** Kode referensi approval backend (CUTI/LEMBUR/DINAS) untuk satu jenis pengajuan. */
-export function kodeReferensi(jenis: JenisPengajuan): string {
-	if (jenis === "cuti") return "CUTI";
-	if (jenis === "lembur") return "LEMBUR";
+/** Backend approval reference code (CUTI/LEMBUR/DINAS) for one request kind. */
+export function toReferenceCode(kind: RequestKind): string {
+	if (kind === "leave") return "CUTI";
+	if (kind === "overtime") return "LEMBUR";
 	return "DINAS";
 }
 
-export function useJenisList() {
+export function useAbsenceTypes() {
 	return useQuery({
-		queryKey: requestKeys.jenis(),
-		queryFn: ({ signal }) => getJenisList(signal),
+		queryKey: requestKeys.absenceTypes(),
+		queryFn: ({ signal }) => getAbsenceTypes(signal),
 		select: (data) => data.items.filter((x) => x.isActive),
 	});
 }
 
-export function useSaldoCuti(tahun: number) {
+export function useLeaveBalance(year: number) {
 	return useQuery({
-		queryKey: requestKeys.saldo(tahun),
-		queryFn: ({ signal }) => getSaldoCuti(tahun, signal),
+		queryKey: requestKeys.balance(year),
+		queryFn: ({ signal }) => getLeaveBalance(year, signal),
 	});
 }
 
-export function useCutiList(status?: string) {
+export function useLeaveRequests(status?: string) {
 	return useQuery({
-		queryKey: requestKeys.cuti(status),
-		queryFn: ({ signal }) => getCutiList(status, signal),
+		queryKey: requestKeys.leave(status),
+		queryFn: ({ signal }) => getLeaveRequests(status, signal),
 		select: (data) => data.items,
 	});
 }
 
-export function useLemburList(status?: string) {
+export function useOvertimeRequests(status?: string) {
 	return useQuery({
-		queryKey: requestKeys.lembur(status),
-		queryFn: ({ signal }) => getLemburList(status, signal),
+		queryKey: requestKeys.overtime(status),
+		queryFn: ({ signal }) => getOvertimeRequests(status, signal),
 		select: (data) => data.items,
 	});
 }
 
-export function useDinasList(status?: string) {
+export function useDutyRequests(status?: string) {
 	return useQuery({
-		queryKey: requestKeys.dinas(status),
-		queryFn: ({ signal }) => getDinasList(status, signal),
+		queryKey: requestKeys.duty(status),
+		queryFn: ({ signal }) => getDutyRequests(status, signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Riwayat approval untuk satu pengajuan (timeline di layar detail). */
-export function useTimeline(jenis: JenisPengajuan, id: string) {
+/** Approval history for one request (timeline on the detail screen). */
+export function useTimeline(kind: RequestKind, id: string) {
 	return useQuery({
-		queryKey: requestKeys.timeline(jenis, id),
-		queryFn: ({ signal }) => getTimeline(kodeReferensi(jenis), id, signal),
+		queryKey: requestKeys.timeline(kind, id),
+		queryFn: ({ signal }) => getTimeline(toReferenceCode(kind), id, signal),
 		enabled: id.length > 0,
 	});
 }
 
-/** Unggah lampiran pengajuan (PRD mobile Bag. 5.4 — file pendukung). */
-export function useUnggahLampiran() {
+/** Upload a request attachment (mobile PRD Bag. 5.4 — supporting file). */
+export function useUploadAttachment() {
 	return useMutation({
-		mutationFn: ({ file, ownerId }: { file: BerkasPilihan; ownerId: string }) =>
-			unggahLampiran(file, ownerId),
+		mutationFn: ({ file, ownerId }: { file: PickedFile; ownerId: string }) =>
+			uploadAttachment(file, ownerId),
 	});
 }
 
-type InputPengajuan =
-	| { jenis: "cuti"; input: InputCuti }
-	| { jenis: "lembur"; input: InputLembur }
-	| { jenis: "dinas"; input: InputDinas };
+type RequestInput =
+	| { kind: "leave"; input: LeaveInput }
+	| { kind: "overtime"; input: OvertimeInput }
+	| { kind: "duty"; input: DutyInput };
 
-/** Simpan pengajuan baru (status DRAFT lalu diajukan di layar yang sama). */
-export function useBuatPengajuan() {
+/** Save a new request (DRAFT status, submitted from the same screen). */
+export function useCreateRequest() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ jenis, input }: InputPengajuan): Promise<HasilAksiPengajuan> => {
-			if (jenis === "cuti") return buatCuti(input as InputCuti);
-			if (jenis === "lembur") return buatLembur(input as InputLembur);
-			return buatDinas(input as InputDinas);
+		mutationFn: ({ kind, input }: RequestInput): Promise<RequestActionResult> => {
+			if (kind === "leave") return createLeave(input as LeaveInput);
+			if (kind === "overtime") return createOvertime(input as OvertimeInput);
+			return createDuty(input as DutyInput);
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: requestKeys.all });
@@ -119,23 +119,23 @@ export function useBuatPengajuan() {
 	});
 }
 
-/** Ajukan / batalkan pengajuan (PUT /api/v1/{leave,overtime,duty}). */
-export function useAksiPengajuan() {
+/** Submit / cancel a request (PUT /api/v1/{leave,overtime,duty}). */
+export function useRequestAction() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({
-			jenis,
+			kind,
 			id,
-			aksi,
+			action,
 		}: {
-			jenis: JenisPengajuan;
+			kind: RequestKind;
 			id: string;
-			aksi: AksiPengajuan;
+			action: RequestAction;
 		}): Promise<{ message: string }> => {
-			if (jenis === "cuti") return ubahStatusCuti(id, aksi);
-			if (jenis === "lembur") return ubahStatusLembur(id, aksi);
-			return ubahStatusDinas(id, aksi);
+			if (kind === "leave") return updateLeaveStatus(id, action);
+			if (kind === "overtime") return updateOvertimeStatus(id, action);
+			return updateDutyStatus(id, action);
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: requestKeys.all });

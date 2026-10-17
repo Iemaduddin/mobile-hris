@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { queryClient } from "@/core/network/query-client";
-import { daftarkanPushToken, usePushNotifikasi } from "@/core/notifications/push";
+import { registerPushToken, usePushNotifications } from "@/core/notifications/push";
 import { colors } from "@/core/theme";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
 import { requestKeys } from "@/features/requests/providers/requests-queries";
@@ -54,13 +54,13 @@ export default function RootLayout() {
 	// notifikasi di foreground → refresh daftar pengajuan in-app.
 	useEffect(() => {
 		if (status !== "signedIn") return;
-		void daftarkanPushToken();
+		void registerPushToken();
 	}, [status]);
 
-	const refreshPengajuan = useCallback(() => {
+	const refreshRequests = useCallback(() => {
 		void queryClient.invalidateQueries({ queryKey: requestKeys.all });
 	}, []);
-	usePushNotifikasi({ siap: status === "signedIn", onNotifikasiDiterima: refreshPengajuan });
+	usePushNotifications({ ready: status === "signedIn", onNotificationReceived: refreshRequests });
 
 	if (status === "loading") {
 		return (

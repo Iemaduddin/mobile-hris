@@ -1,3 +1,3 @@
-import PresensiScreen from "@/features/attendance/presentation/attendance-screen";
+import AttendanceScreen from "@/features/attendance/presentation/attendance-screen";
 
-export default PresensiScreen;
+export default AttendanceScreen;

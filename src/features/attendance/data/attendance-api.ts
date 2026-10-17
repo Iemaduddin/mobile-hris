@@ -1,35 +1,35 @@
 import { api } from "@/core/network/api-client";
 import type {
-	DetailHari,
-	HasilClock,
-	InputPresensi,
-	RiwayatBulanan,
-	StatusPresensiHariIni,
+	AttendanceInput,
+	ClockResult,
+	DayDetail,
+	MonthlyHistory,
+	TodayAttendanceStatus,
 } from "../models/attendance";
 
 /**
- * Endpoint presensi mobile — PRD mobile Bag. 6 no.6-8.
- * `deviceId`/`platform` ditempel otomatis oleh pemanggil (lihat useClock).
+ * Mobile attendance endpoints — mobile PRD Bag. 6 no.6-8.
+ * `deviceId`/`platform` are attached by the caller (see useClock).
  */
 
-export function getStatusHariIni(signal?: AbortSignal): Promise<StatusPresensiHariIni> {
-	return api.get<StatusPresensiHariIni>("/api/v1/attendance", { signal });
+export function getTodayStatus(signal?: AbortSignal): Promise<TodayAttendanceStatus> {
+	return api.get<TodayAttendanceStatus>("/api/v1/attendance", { signal });
 }
 
-export function catatPresensi(input: InputPresensi): Promise<HasilClock> {
-	return api.post<HasilClock>("/api/v1/attendance", input);
+export function recordAttendance(input: AttendanceInput): Promise<ClockResult> {
+	return api.post<ClockResult>("/api/v1/attendance", input);
 }
 
-export function getRiwayatBulanan(
-	tahun: number,
-	bulan: number,
+export function getMonthlyHistory(
+	year: number,
+	month: number,
 	signal?: AbortSignal,
-): Promise<RiwayatBulanan> {
-	const query = `?tahun=${tahun}&bulan=${bulan}`;
-	return api.get<RiwayatBulanan>(`/api/v1/attendance/history${query}`, { signal });
+): Promise<MonthlyHistory> {
+	const query = `?year=${year}&month=${month}`;
+	return api.get<MonthlyHistory>(`/api/v1/attendance/history${query}`, { signal });
 }
 
-/** Detail satu hari (rekap + daftar event) — PRD mobile Bag. 5.3.C. */
-export function getDetailHari(tanggal: string, signal?: AbortSignal): Promise<DetailHari> {
-	return api.get<DetailHari>(`/api/v1/attendance/day?tanggal=${tanggal}`, { signal });
+/** One-day detail (recap + event list) — mobile PRD Bag. 5.3.C. */
+export function getDayDetail(date: string, signal?: AbortSignal): Promise<DayDetail> {
+	return api.get<DayDetail>(`/api/v1/attendance/day?date=${date}`, { signal });
 }

@@ -1,48 +1,42 @@
 import { api } from "@/core/network/api-client";
 
-/** Kasbon / pinjaman karyawan mobile — M-ESS-2 (potong otomatis via salary run). */
+/** Employee salary advances — M-ESS-2 (auto-deducted via salary runs). */
 
-export type KasbonSaya = {
+export type MySalaryAdvance = {
 	id: string;
-	nomor: string;
-	nominal: string;
-	tenorBulan: number;
-	angsuranPerBulan: string;
-	sisaHutang: string;
-	mulaiPotong: string;
-	alasan: string;
+	number: string;
+	amount: string;
+	tenorMonths: number;
+	monthlyInstallment: string;
+	remainingDebt: string;
+	deductionStart: string;
+	reason: string;
 	status: string;
-	angsuranKe: number;
-	catatan: string | null;
+	installmentNo: number;
+	note: string | null;
 };
 
-export type InputKasbon = {
-	nominal: number;
-	tenorBulan: number;
-	mulaiPotong: string;
-	alasan: string;
+export type SalaryAdvanceInput = {
+	amount: number;
+	tenorMonths: number;
+	deductionStart: string;
+	reason: string;
 };
 
-export function getKasbonSaya(signal?: AbortSignal): Promise<{ items: KasbonSaya[] }> {
-	return api.get<{ items: KasbonSaya[] }>("/api/v1/kasbon", { signal });
+export function getMySalaryAdvances(signal?: AbortSignal): Promise<{ items: MySalaryAdvance[] }> {
+	return api.get<{ items: MySalaryAdvance[] }>("/api/v1/kasbon", { signal });
 }
 
-export function buatKasbon(input: InputKasbon): Promise<{ id: string; message: string }> {
+export function createSalaryAdvance(input: SalaryAdvanceInput): Promise<{ id: string; message: string }> {
 	return api.post<{ id: string; message: string }>("/api/v1/kasbon", input);
 }
 
-export function ubahStatusKasbon(id: string, aksi: "ajukan" | "batal"): Promise<{ message: string }> {
-	return api.put<{ message: string }>("/api/v1/kasbon", { id, aksi });
+export function updateSalaryAdvanceStatus(id: string, action: "submit" | "cancel"): Promise<{ message: string }> {
+	return api.put<{ message: string }>("/api/v1/kasbon", { id, action });
 }
 
-export function formatRupiahKasbon(nominal: string | number): string {
-	const n = typeof nominal === "number" ? nominal : Number(nominal);
-	if (!Number.isFinite(n)) return "Rp0";
-	return `Rp${Math.round(n).toLocaleString("id-ID")}`;
-}
-
-/** Estimasi angsuran per bulan (pembulatan ke atas). */
-export function estimasiAngsuran(nominal: number, tenorBulan: number): number {
-	if (!Number.isFinite(nominal) || nominal <= 0 || !Number.isFinite(tenorBulan) || tenorBulan < 1) return 0;
-	return Math.ceil(nominal / Math.floor(tenorBulan));
+/** Estimated monthly installment (rounded up). */
+export function estimateInstallment(amount: number, tenorMonths: number): number {
+	if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(tenorMonths) || tenorMonths < 1) return 0;
+	return Math.ceil(amount / Math.floor(tenorMonths));
 }

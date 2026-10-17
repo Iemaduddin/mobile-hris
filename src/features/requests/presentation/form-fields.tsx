@@ -2,9 +2,9 @@ import { useState, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { formatTanggal, parseTanggal, toTanggalOnly } from "@/core/util/format";
+import { formatDate, parseLocalDate, toDateOnly } from "@/core/util/format";
 
-function keTanggal(value: string): Date {
+function toDate(value: string): Date {
 	return timeStringToDate(value, new Date());
 }
 
@@ -16,7 +16,7 @@ function timeStringToDate(value: string, fallback: Date): Date {
 	return d;
 }
 
-function keJam(d: Date): string {
+function toTime(d: Date): string {
 	const pad = (n: number) => String(n).padStart(2, "0");
 	return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -42,12 +42,12 @@ type DateFieldProps = {
 
 export function DateField({ label, value, onChange, error }: DateFieldProps) {
 	const [show, setShow] = useState(false);
-	const date = value ? parseTanggal(value) : new Date();
+	const date = value ? parseLocalDate(value) : new Date();
 
 	const handleChange = (event: DateTimePickerEvent, picked?: Date) => {
 		// Android menampilkan dialog — tutup begitu pengguna memilih/membatalkan.
 		if (Platform.OS !== "ios") setShow(false);
-		if (event.type === "set" && picked) onChange(toTanggalOnly(picked));
+		if (event.type === "set" && picked) onChange(toDateOnly(picked));
 	};
 
 	return (
@@ -55,11 +55,11 @@ export function DateField({ label, value, onChange, error }: DateFieldProps) {
 			<Pressable
 				onPress={() => setShow((s) => !s)}
 				accessibilityRole="button"
-				accessibilityLabel={`${label}, ${value ? formatTanggal(value) : "belum dipilih"}`}
+				accessibilityLabel={`${label}, ${value ? formatDate(value) : "belum dipilih"}`}
 				style={[styles.input, error ? styles.inputError : null]}
 			>
 				<Text style={[styles.value, value ? null : styles.placeholder]} numberOfLines={1}>
-					{value ? formatTanggal(value) : "Pilih tanggal"}
+					{value ? formatDate(value) : "Pilih tanggal"}
 				</Text>
 				<Text style={styles.chevron}>▾</Text>
 			</Pressable>
@@ -90,11 +90,11 @@ type TimeFieldProps = {
 
 export function TimeField({ label, value, onChange, error }: TimeFieldProps) {
 	const [show, setShow] = useState(false);
-	const date = keTanggal(value);
+	const date = toDate(value);
 
 	const handleChange = (event: DateTimePickerEvent, picked?: Date) => {
 		if (Platform.OS !== "ios") setShow(false);
-		if (event.type === "set" && picked) onChange(keJam(picked));
+		if (event.type === "set" && picked) onChange(toTime(picked));
 	};
 
 	return (

@@ -1,32 +1,32 @@
-export type SlipSaya = {
-	nomor: string;
-	periode: string;
-	gajiBersih: string;
+export type MyPayslip = {
+	number: string;
+	period: string;
+	netPay: string;
 };
 
-export type RincianSlip = {
-	kode: string;
-	nama: string;
-	kelompok: string;
-	jumlah: number;
-	keterangan: string;
+export type PayslipLine = {
+	code: string;
+	name: string;
+	group: string;
+	amount: number;
+	description: string;
 };
 
-export type SlipDetail = {
-	nomor: string;
-	periode: string;
-	karyawanNama: string;
-	nomorKaryawan: string;
-	gajiPokok: string;
-	totalPendapatan: string;
-	totalPotongan: string;
-	gajiBersih: string;
-	hariHadir: number;
-	hariAlpa: number;
-	rincian: RincianSlip[];
+export type PayslipDetail = {
+	number: string;
+	period: string;
+	employeeName: string;
+	employeeNumber: string;
+	baseSalary: string;
+	totalEarnings: string;
+	totalDeductions: string;
+	netPay: string;
+	presentDays: number;
+	absentDays: number;
+	lines: PayslipLine[];
 };
 
-const BULAN = [
+const MONTHS = [
 	"Januari",
 	"Februari",
 	"Maret",
@@ -41,7 +41,7 @@ const BULAN = [
 	"Desember",
 ];
 
-const KELOMPOK_LABEL: Record<string, string> = {
+const GROUP_LABELS: Record<string, string> = {
 	PENDAPATAN: "Pendapatan",
 	TUNJANGAN: "Tunjangan",
 	POTONGAN: "Potongan",
@@ -49,38 +49,32 @@ const KELOMPOK_LABEL: Record<string, string> = {
 	BIAYA_PERUSAHAAN: "Ditanggung perusahaan",
 };
 
-const URUTAN_KELOMPOK = ["PENDAPATAN", "TUNJANGAN", "POTONGAN", "IURAN", "BIAYA_PERUSAHAAN"];
+const GROUP_ORDER = ["PENDAPATAN", "TUNJANGAN", "POTONGAN", "IURAN", "BIAYA_PERUSAHAAN"];
 
 /** "2026-09" -> "September 2026". */
-export function labelPeriode(periode: string): string {
-	const [tahun, bulan] = periode.split("-");
-	const index = Number(bulan) - 1;
-	if (!tahun || Number.isNaN(index) || index < 0 || index > 11) return periode;
-	return `${BULAN[index]} ${tahun}`;
+export function getPeriodLabel(period: string): string {
+	const [year, month] = period.split("-");
+	const index = Number(month) - 1;
+	if (!year || Number.isNaN(index) || index < 0 || index > 11) return period;
+	return `${MONTHS[index]} ${year}`;
 }
 
-export function formatRupiah(value: string | number): string {
-	const angka = typeof value === "string" ? Number(value) : value;
-	if (!Number.isFinite(angka)) return "Rp 0";
-	return `Rp ${Math.round(angka).toLocaleString("id-ID")}`;
-}
-
-export type KelompokRincian = {
-	kelompok: string;
+export type PayslipLineGroup = {
+	group: string;
 	label: string;
-	items: RincianSlip[];
+	items: PayslipLine[];
 	subtotal: number;
 };
 
-/** Rincian dikelompokkan per kelompok (pendapatan/tunjangan/potongan/iuran). */
-export function kelompokRincian(rincian: RincianSlip[]): KelompokRincian[] {
-	return URUTAN_KELOMPOK.map((kelompok) => {
-		const items = rincian.filter((r) => r.kelompok === kelompok);
+/** Lines grouped per group (earnings/allowances/deductions/contributions). */
+export function groupPayslipLines(lines: PayslipLine[]): PayslipLineGroup[] {
+	return GROUP_ORDER.map((group) => {
+		const items = lines.filter((r) => r.group === group);
 		return {
-			kelompok,
-			label: KELOMPOK_LABEL[kelompok] ?? kelompok,
+			group,
+			label: GROUP_LABELS[group] ?? group,
 			items,
-			subtotal: items.reduce((total, r) => total + (Number(r.jumlah) || 0), 0),
+			subtotal: items.reduce((total, r) => total + (Number(r.amount) || 0), 0),
 		};
 	}).filter((g) => g.items.length > 0);
 }

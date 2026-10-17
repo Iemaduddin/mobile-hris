@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { StatusChip, type ChipTone } from "@/core/widgets/status-chip";
-import { formatTanggalPanjang } from "@/core/util/format";
-import type { TahapApproval } from "../data/requests-api";
+import { formatLongDate } from "@/core/util/format";
+import type { ApprovalStage } from "../data/requests-api";
 
-type State = "done" | "aktif" | "gagal" | "pending";
-type Tahap = { label: string; state: State };
+type State = "done" | "active" | "failed" | "pending";
+type Stage = { label: string; state: State };
 
-const URUTAN = ["DRAFT", "DIAJUKAN", "MENUNGGU_APPROVAL", "DISETUJUI"] as const;
+const ORDER = ["DRAFT", "DIAJUKAN", "MENUNGGU_APPROVAL", "DISETUJUI"] as const;
 
 const LABEL: Record<string, string> = {
 	DRAFT: "Draf dibuat",
@@ -21,67 +21,67 @@ const LABEL: Record<string, string> = {
 
 const DOT: Record<State, string> = {
 	done: colors.success,
-	aktif: colors.primary,
-	gagal: colors.danger,
+	active: colors.primary,
+	failed: colors.danger,
 	pending: colors.disabled,
 };
 
 const DOT_TEXT: Record<State, string> = {
 	done: colors.textInverse,
-	aktif: colors.textInverse,
-	gagal: colors.textInverse,
+	active: colors.textInverse,
+	failed: colors.textInverse,
 	pending: colors.textMuted,
 };
 
 /**
- * Susunan tahap status pengajuan (PRD mobile Bag. 5.4):
- * DRAFT → DIAJUKAN → MENUNGGU_APPROVAL → DISETUJUI | DITOLAK, atau DIBATALKAN.
+ * Request status stage list (mobile PRD Bag. 5.4):
+ * DRAFT → DIAJUKAN → MENUNGGU_APPROVAL → DISETUJUI | DITOLAK, or DIBATALKAN.
  */
-export function stagesDariStatus(status: string, adaApproval: boolean): Tahap[] {
-	const idx = (URUTAN as readonly string[]).indexOf(status);
+export function stagesFromStatus(status: string, hasApproval: boolean): Stage[] {
+	const idx = (ORDER as readonly string[]).indexOf(status);
 	if (idx >= 0) {
-		return URUTAN.map((k, i) => ({
+		return ORDER.map((k, i) => ({
 			label: LABEL[k],
-			state: i < idx ? "done" : i === idx ? "aktif" : "pending",
+			state: i < idx ? "done" : i === idx ? "active" : "pending",
 		}));
 	}
 	if (status === "SELESAI") {
 		return [
-			...URUTAN.map((k) => ({ label: LABEL[k], state: "done" as State })),
-			{ label: LABEL.SELESAI, state: "aktif" },
+			...ORDER.map((k) => ({ label: LABEL[k], state: "done" as State })),
+			{ label: LABEL.SELESAI, state: "active" },
 		];
 	}
 	if (status === "DITOLAK") {
 		return [
-			...URUTAN.slice(0, 3).map((k) => ({ label: LABEL[k], state: "done" as State })),
-			{ label: LABEL.DITOLAK, state: "gagal" },
+			...ORDER.slice(0, 3).map((k) => ({ label: LABEL[k], state: "done" as State })),
+			{ label: LABEL.DITOLAK, state: "failed" },
 		];
 	}
 	if (status === "DIBATALKAN") {
-		const tahap: Tahap[] = [{ label: LABEL.DRAFT, state: "done" }];
-		if (adaApproval) tahap.push({ label: LABEL.DIAJUKAN, state: "done" });
-		tahap.push({ label: LABEL.DIBATALKAN, state: "gagal" });
-		return tahap;
+		const stages: Stage[] = [{ label: LABEL.DRAFT, state: "done" }];
+		if (hasApproval) stages.push({ label: LABEL.DIAJUKAN, state: "done" });
+		stages.push({ label: LABEL.DIBATALKAN, state: "failed" });
+		return stages;
 	}
-	return [{ label: LABEL.DRAFT, state: "aktif" }];
+	return [{ label: LABEL.DRAFT, state: "active" }];
 }
 
-/** Timeline status ringkas — selalu tampil di layar detail. */
-export function StatusTimeline({ status, adaApproval }: { status: string; adaApproval: boolean }) {
-	const tahap = stagesDariStatus(status, adaApproval);
+/** Compact status timeline — always shown on the detail screen. */
+export function StatusTimeline({ status, hasApproval }: { status: string; hasApproval: boolean }) {
+	const stages = stagesFromStatus(status, hasApproval);
 
 	return (
 		<View style={styles.panel}>
 			<Text style={styles.title}>Riwayat status</Text>
-			{tahap.map((t, i) => (
+			{stages.map((t, i) => (
 				<View key={`${t.label}-${i}`} style={styles.row}>
 					<View style={styles.gutter}>
 						<View style={[styles.dot, { backgroundColor: DOT[t.state] }]}>
 							<Text style={[styles.dotText, { color: DOT_TEXT[t.state] }]}>
-								{t.state === "done" ? "✓" : t.state === "gagal" ? "✕" : ""}
+								{t.state === "done" ? "✓" : t.state === "failed" ? "✕" : ""}
 							</Text>
 						</View>
-						{i < tahap.length - 1 ? <View style={[styles.line, { backgroundColor: DOT[t.state] }]} /> : null}
+						{i < stages.length - 1 ? <View style={[styles.line, { backgroundColor: DOT[t.state] }]} /> : null}
 					</View>
 					<Text style={[styles.label, t.state === "pending" ? styles.labelPending : null]}>{t.label}</Text>
 				</View>
@@ -90,44 +90,44 @@ export function StatusTimeline({ status, adaApproval }: { status: string; adaApp
 	);
 }
 
-function labelRole(role: string | null): string {
+function getRoleLabel(role: string | null): string {
 	if (role === "ADMIN_HR" || role === "SUPER_ADMIN") return "HR";
 	return role || "—";
 }
 
-function labelStatusStep(status: string): string {
+function getStepStatusLabel(status: string): string {
 	if (status === "DISETUJUI") return "Disetujui";
 	if (status === "DITOLAK") return "Ditolak";
 	return "Menunggu";
 }
 
-function toneStatusStep(status: string): ChipTone {
+function getStepStatusTone(status: string): ChipTone {
 	if (status === "DISETUJUI") return "success";
 	if (status === "DITOLAK") return "danger";
 	return "warning";
 }
 
-/** Rincian tiap tahap approval (siapa memutuskan & kapan). */
-export function ApprovalSteps({ items }: { items: TahapApproval[] }) {
+/** Per-stage approval detail (who decided & when). */
+export function ApprovalSteps({ items }: { items: ApprovalStage[] }) {
 	if (items.length === 0) return null;
 
 	return (
 		<View style={styles.panel}>
 			<Text style={styles.title}>Tahap approval</Text>
 			{items.map((s) => (
-				<View key={s.tahap} style={styles.step}>
+				<View key={s.stage} style={styles.step}>
 					<View style={styles.stepHead}>
 						<Text style={styles.stepWho} numberOfLines={1}>
-							Tahap {s.tahap} · {s.approverNama ?? labelRole(s.approverRole)}
+							Tahap {s.stage} · {s.approverName ?? getRoleLabel(s.approverRole)}
 						</Text>
-						<StatusChip label={labelStatusStep(s.status)} tone={toneStatusStep(s.status)} />
+						<StatusChip label={getStepStatusLabel(s.status)} tone={getStepStatusTone(s.status)} />
 					</View>
-					{s.diprosesPada ? (
-						<Text style={styles.stepMeta}>{formatTanggalPanjang(s.diprosesPada)}</Text>
+					{s.processedAt ? (
+						<Text style={styles.stepMeta}>{formatLongDate(s.processedAt)}</Text>
 					) : (
 						<Text style={styles.stepMeta}>Belum diproses</Text>
 					)}
-					{s.catatan ? <Text style={styles.stepCatatan}>“{s.catatan}”</Text> : null}
+					{s.note ? <Text style={styles.stepNote}>“{s.note}”</Text> : null}
 				</View>
 			))}
 		</View>
@@ -170,5 +170,5 @@ const styles = StyleSheet.create({
 	stepHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 	stepWho: { flex: 1, fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
 	stepMeta: { fontSize: fontSize.xs, color: colors.textMuted },
-	stepCatatan: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic" },
+	stepNote: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic" },
 });

@@ -6,33 +6,33 @@ import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { StatusChip } from "@/core/widgets/status-chip";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
-import { useInboxApproval, usePutusanApproval } from "../providers/approval-queries";
-import { labelTipeApproval, type InboxApproval } from "../data/approval-api";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
+import { useApprovalDecision, useApprovalInbox } from "../providers/approval-queries";
+import { getApprovalTypeLabel, type ApprovalInboxItem } from "../data/approval-api";
 import { ApiException } from "@/core/network/api-exception";
 
 /**
- * Persetujuan manajer — P4-4. Setuju/tolak + catatan dari HP;
- * master/payroll tetap read-only (tak ada layar kelola di mobile).
+ * Manager approvals — P4-4. Approve/reject + note from the phone;
+ * master/payroll stay read-only (no management screens on mobile).
  */
 export function ApprovalScreen() {
-	const inbox = useInboxApproval();
-	const putusan = usePutusanApproval();
-	const [catatan, setCatatan] = useState<Record<string, string>>({});
+	const inbox = useApprovalInbox();
+	const decision = useApprovalDecision();
+	const [notes, setNotes] = useState<Record<string, string>>({});
 
-	function kirim(item: InboxApproval, keputusan: "SETUJU" | "TOLAK") {
-		const note = (catatan[item.id] ?? "").trim();
-		if (keputusan === "TOLAK" && !note) {
+	function decide(item: ApprovalInboxItem, verdict: "SETUJU" | "TOLAK") {
+		const note = (notes[item.id] ?? "").trim();
+		if (verdict === "TOLAK" && !note) {
 			Alert.alert("Catatan wajib", "Isi alasan penolakan sebelum menolak.");
 			return;
 		}
-		const lanjut = () =>
-			putusan.mutate(
-				{ type: item.type, id: item.id, keputusan, catatan: note || undefined },
+		const proceed = () =>
+			decision.mutate(
+				{ type: item.type, id: item.id, decision: verdict, note: note || undefined },
 				{
-					onSuccess: (hasil) => {
-						Alert.alert("Berhasil", hasil.message);
-						setCatatan((prev) => {
+					onSuccess: (result) => {
+						Alert.alert("Berhasil", result.message);
+						setNotes((prev) => {
 							const next = { ...prev };
 							delete next[item.id];
 							return next;
@@ -46,21 +46,21 @@ export function ApprovalScreen() {
 					},
 				},
 			);
-		if (keputusan === "SETUJU") {
-			Alert.alert("Setujui pengajuan?", `${item.nomor} • ${item.ringkasan}`, [
+		if (verdict === "SETUJU") {
+			Alert.alert("Setujui pengajuan?", `${item.number} • ${item.summary}`, [
 				{ text: "Batal", style: "cancel" },
-				{ text: "Setuju", onPress: lanjut },
+				{ text: "Setuju", onPress: proceed },
 			]);
 		} else {
-			lanjut();
+			proceed();
 		}
 	}
 
 	if (inbox.isPending)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Persetujuan" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (inbox.isError && inbox.data === undefined)
@@ -69,7 +69,7 @@ export function ApprovalScreen() {
 	const items = inbox.data ?? [];
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader
 				title="Persetujuan"
 				subtitle={
@@ -91,34 +91,34 @@ export function ApprovalScreen() {
 				renderItem={({ item }) => (
 					<View style={styles.card}>
 						<View style={styles.cardHead}>
-							<Text style={styles.tipe}>{labelTipeApproval(item.type)}</Text>
-							<StatusChip label={`Tahap ${item.tahap} · Menunggu`} tone="warning" />
+							<Text style={styles.kind}>{getApprovalTypeLabel(item.type)}</Text>
+							<StatusChip label={`Tahap ${item.stage} · Menunggu`} tone="warning" />
 						</View>
-						<Text style={styles.nama}>
-							{item.karyawanNama} <Text style={styles.nomor}>({item.nomorKaryawan})</Text>
+						<Text style={styles.name}>
+							{item.employeeName} <Text style={styles.number}>({item.employeeNumber})</Text>
 						</Text>
-						<Text style={styles.nomorPengajuan}>{item.nomor}</Text>
-						<Text style={styles.ringkasan}>{item.ringkasan}</Text>
+						<Text style={styles.requestNumber}>{item.number}</Text>
+						<Text style={styles.summary}>{item.summary}</Text>
 						<AppTextField
 							label="Catatan (wajib saat menolak)"
 							placeholder="cth. Sesuaikan tanggal dinas"
-							value={catatan[item.id] ?? ""}
-							onChangeText={(text) => setCatatan((prev) => ({ ...prev, [item.id]: text }))}
+							value={notes[item.id] ?? ""}
+							onChangeText={(text) => setNotes((prev) => ({ ...prev, [item.id]: text }))}
 						/>
-						<View style={styles.aksi}>
-							<View style={styles.tombol}>
+						<View style={styles.actions}>
+							<View style={styles.button}>
 								<AppButton
 									label="Setuju"
-									loading={putusan.isPending}
-									onPress={() => kirim(item, "SETUJU")}
+									loading={decision.isPending}
+									onPress={() => decide(item, "SETUJU")}
 								/>
 							</View>
-							<View style={styles.tombol}>
+							<View style={styles.button}>
 								<AppButton
 									label="Tolak"
 									variant="danger"
-									loading={putusan.isPending}
-									onPress={() => kirim(item, "TOLAK")}
+									loading={decision.isPending}
+									onPress={() => decide(item, "TOLAK")}
 								/>
 							</View>
 						</View>
@@ -131,7 +131,7 @@ export function ApprovalScreen() {
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
 	card: {
 		backgroundColor: colors.surface,
@@ -142,12 +142,12 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 	},
 	cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-	tipe: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primary },
-	nama: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
-	nomor: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: "400" },
-	nomorPengajuan: { fontSize: fontSize.xs, color: colors.textMuted },
-	ringkasan: { fontSize: fontSize.sm, color: colors.text },
-	aksi: { flexDirection: "row", gap: spacing.sm },
-	tombol: { flex: 1 },
+	kind: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primary },
+	name: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
+	number: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: "400" },
+	requestNumber: { fontSize: fontSize.xs, color: colors.textMuted },
+	summary: { fontSize: fontSize.sm, color: colors.text },
+	actions: { flexDirection: "row", gap: spacing.sm },
+	button: { flex: 1 },
 	gap: { height: spacing.sm },
 });

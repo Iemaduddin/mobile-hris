@@ -1,56 +1,56 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	buatUpdateData,
-	getKeluargaSaya,
-	getUpdateDataSaya,
-	ubahStatusUpdateData,
-	type InputUpdateData,
+	createDataUpdate,
+	getMyDataUpdates,
+	getMyFamily,
+	updateDataUpdateStatus,
+	type DataUpdateInput,
 } from "../data/updatedata-api";
 
-export const updatedataKeys = {
-	all: ["updatedata"] as const,
-	daftar: () => [...updatedataKeys.all, "daftar"] as const,
-	keluarga: () => [...updatedataKeys.all, "keluarga"] as const,
+export const dataUpdateKeys = {
+	all: ["data-updates"] as const,
+	list: () => [...dataUpdateKeys.all, "list"] as const,
+	family: () => [...dataUpdateKeys.all, "family"] as const,
 };
 
-/** Daftar usulan milik sendiri. */
-export function useUpdateDataSaya() {
+/** Owned proposal list. */
+export function useMyDataUpdates() {
 	return useQuery({
-		queryKey: updatedataKeys.daftar(),
-		queryFn: ({ signal }) => getUpdateDataSaya(signal),
+		queryKey: dataUpdateKeys.list(),
+		queryFn: ({ signal }) => getMyDataUpdates(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Anggota keluarga (pilihan target ubah). */
-export function useKeluargaSaya() {
+/** Family members (change-target options). */
+export function useMyFamily() {
 	return useQuery({
-		queryKey: updatedataKeys.keluarga(),
-		queryFn: ({ signal }) => getKeluargaSaya(signal),
+		queryKey: dataUpdateKeys.family(),
+		queryFn: ({ signal }) => getMyFamily(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Buat draf usulan. */
-export function useBuatUpdateData() {
+/** Create a proposal draft. */
+export function useCreateDataUpdate() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (input: InputUpdateData) => buatUpdateData(input),
+		mutationFn: (input: DataUpdateInput) => createDataUpdate(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: updatedataKeys.all });
+			void queryClient.invalidateQueries({ queryKey: dataUpdateKeys.all });
 		},
 	});
 }
 
-/** Ajukan / batalkan usulan. */
-export function useAksiUpdateData() {
+/** Submit / cancel a proposal. */
+export function useDataUpdateAction() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, aksi }: { id: string; aksi: "ajukan" | "batal" }) => ubahStatusUpdateData(id, aksi),
+		mutationFn: ({ id, action }: { id: string; action: "submit" | "cancel" }) => updateDataUpdateStatus(id, action),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: updatedataKeys.all });
+			void queryClient.invalidateQueries({ queryKey: dataUpdateKeys.all });
 		},
 	});
 }

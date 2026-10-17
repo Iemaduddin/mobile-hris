@@ -1,6 +1,6 @@
 import type { ChipTone } from "@/core/widgets/status-chip";
 
-const LABEL_STATUS: Record<string, string> = {
+const STATUS_LABELS: Record<string, string> = {
 	DRAFT: "Draf",
 	DIAJUKAN: "Diajukan",
 	MENUNGGU_APPROVAL: "Menunggu approval",
@@ -10,7 +10,7 @@ const LABEL_STATUS: Record<string, string> = {
 	SELESAI: "Selesai",
 };
 
-const TONE_STATUS: Record<string, ChipTone> = {
+const STATUS_TONES: Record<string, ChipTone> = {
 	DRAFT: "muted",
 	DIAJUKAN: "warning",
 	MENUNGGU_APPROVAL: "warning",
@@ -20,10 +20,10 @@ const TONE_STATUS: Record<string, ChipTone> = {
 	SELESAI: "success",
 };
 
-export function labelStatusKoreksi(status: string): string {
-	return LABEL_STATUS[status] ?? status.replace(/_/g, " ");
+export function getCorrectionStatusLabel(status: string): string {
+	return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 
-export function toneStatusKoreksi(status: string): ChipTone {
-	return TONE_STATUS[status] ?? "muted";
+export function getCorrectionStatusTone(status: string): ChipTone {
+	return STATUS_TONES[status] ?? "muted";
 }

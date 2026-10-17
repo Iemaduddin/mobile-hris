@@ -1,26 +1,26 @@
 import { api } from "@/core/network/api-client";
 
-/** Pengumuman perusahaan + peristiwa minggu ini (ultah/anniversary). */
+/** Company announcements + this week's events (birthdays/anniversaries). */
 
-export type PengumumanMobile = {
+export type CompanyAnnouncement = {
 	id: string;
-	judul: string;
-	isi: string;
-	unitNama: string | null;
-	tayangMulai: string;
-	tayangSelesai: string | null;
+	title: string;
+	body: string;
+	unitName: string | null;
+	startsAt: string;
+	endsAt: string | null;
 };
 
-export type PeristiwaMobile = {
-	namaLengkap: string;
-	nomorKaryawan: string;
-	jenis: "ULTAH" | "ANNIV";
-	tanggal: string;
+export type UpcomingEvent = {
+	fullName: string;
+	employeeNumber: string;
+	kind: "ULTAH" | "ANNIV";
+	date: string;
 	info: string;
 };
 
-export type ResponsPengumuman = { items: PengumumanMobile[]; peristiwa: PeristiwaMobile[] };
+export type AnnouncementResponse = { items: CompanyAnnouncement[]; events: UpcomingEvent[] };
 
-export function getPengumuman(signal?: AbortSignal): Promise<ResponsPengumuman> {
-	return api.get<ResponsPengumuman>("/api/v1/pengumuman", { signal });
+export function getAnnouncements(signal?: AbortSignal): Promise<AnnouncementResponse> {
+	return api.get<AnnouncementResponse>("/api/v1/pengumuman", { signal });
 }

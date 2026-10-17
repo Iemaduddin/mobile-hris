@@ -1,48 +1,48 @@
 import { api } from "@/core/network/api-client";
 
-/** Notifikasi in-app mobile — P4-3 (endpoint sudah ada, layar baru). */
+/** Mobile in-app notifications — P4-3 (endpoint exists, new screen). */
 
-export type NotifikasiMobile = {
+export type MobileNotification = {
 	id: string;
-	judul: string;
-	isi: string;
-	jenis: string;
-	referensiType: string | null;
-	referensiId: string | null;
+	title: string;
+	body: string;
+	kind: string;
+	referenceType: string | null;
+	referenceId: string | null;
 	url: string | null;
-	dibaca: boolean;
-	waktu: string;
+	isRead: boolean;
+	time: string;
 };
 
-export type PreferensiMobile = { pushAktif: boolean; emailAktif: boolean };
+export type MobilePreferences = { pushEnabled: boolean; emailEnabled: boolean };
 
-export type ResponsNotifikasi = {
-	belumDibaca: number;
-	preferensi: PreferensiMobile;
-	items: NotifikasiMobile[];
+export type NotificationResponse = {
+	unreadCount: number;
+	preferences: MobilePreferences;
+	items: MobileNotification[];
 };
 
-export function getNotifikasi(hanyaBaru = false, signal?: AbortSignal): Promise<ResponsNotifikasi> {
-	const qs = hanyaBaru ? "?belumDibaca=1" : "";
-	return api.get<ResponsNotifikasi>(`/api/v1/notifications${qs}`, { signal });
+export function getNotifications(unreadOnly = false, signal?: AbortSignal): Promise<NotificationResponse> {
+	const qs = unreadOnly ? "?unread=1" : "";
+	return api.get<NotificationResponse>(`/api/v1/notifications${qs}`, { signal });
 }
 
-export function tandaiDibaca(id: string): Promise<{ message: string }> {
+export function markAsRead(id: string): Promise<{ message: string }> {
 	return api.put<{ message: string }>("/api/v1/notifications", { id });
 }
 
-export function simpanPreferensi(input: PreferensiMobile): Promise<{ message: string }> {
+export function savePreferences(input: MobilePreferences): Promise<{ message: string }> {
 	return api.post<{ message: string }>("/api/v1/notifications", input);
 }
 
-/** Petakan deep-link web server ke rute mobile. */
-export function ruteMobile(item: Pick<NotifikasiMobile, "url" | "referensiType" | "referensiId">): string | null {
+/** Map the server web deep-link to a mobile route. */
+export function mobileRoute(item: Pick<MobileNotification, "url" | "referenceType" | "referenceId">): string | null {
 	if (item.url === "/approval") return "/approval";
-	if (item.referensiType === "CUTI" && item.referensiId)
-		return `/requests/detail?id=${encodeURIComponent(item.referensiId)}&jenis=cuti`;
-	if (item.referensiType === "LEMBUR" && item.referensiId)
-		return `/requests/detail?id=${encodeURIComponent(item.referensiId)}&jenis=lembur`;
-	if (item.referensiType === "DINAS" && item.referensiId)
-		return `/requests/detail?id=${encodeURIComponent(item.referensiId)}&jenis=dinas`;
+	if (item.referenceType === "CUTI" && item.referenceId)
+		return `/requests/detail?id=${encodeURIComponent(item.referenceId)}&kind=leave`;
+	if (item.referenceType === "LEMBUR" && item.referenceId)
+		return `/requests/detail?id=${encodeURIComponent(item.referenceId)}&kind=overtime`;
+	if (item.referenceType === "DINAS" && item.referenceId)
+		return `/requests/detail?id=${encodeURIComponent(item.referenceId)}&kind=duty`;
 	return null;
 }

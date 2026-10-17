@@ -3,60 +3,60 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { ErrorView } from "@/core/widgets";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { EmptyView } from "@/core/widgets/states";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { StatusChip } from "@/core/widgets/status-chip";
-import { formatBulanTahun, formatJam, labelStatusRekap, namaHariPendek, parseTanggal, toneStatusRekap } from "@/core/util/format";
-import { useRiwayatBulanan } from "../providers/attendance-queries";
-import type { RekapHarian } from "../models/attendance";
+import { formatMonthYear, formatTime, getAttendanceStatusLabel, shortWeekdayName, parseLocalDate, getAttendanceStatusTone } from "@/core/util/format";
+import { useMonthlyHistory } from "../providers/attendance-queries";
+import type { DailyRecap } from "../models/attendance";
 
 /**
- * Riwayat presensi bulanan (PRD mobile Bag. 5.3.C).
- * Rute `/attendance/riwayat`, tap hari → detail.
+ * Monthly attendance history (mobile PRD Bag. 5.3.C).
+ * Route `/attendance/riwayat`, tap a day → detail.
  */
-export default function RiwayatScreen() {
-	const [periode, setPeriode] = useState(() => {
+export default function HistoryScreen() {
+	const [period, setPeriod] = useState(() => {
 		const now = new Date();
-		return { tahun: now.getFullYear(), bulan: now.getMonth() + 1 };
+		return { year: now.getFullYear(), month: now.getMonth() + 1 };
 	});
 
-	const { data, isLoading, isError, refetch, isFetching } = useRiwayatBulanan(
-		periode.tahun,
-		periode.bulan,
+	const { data, isLoading, isError, refetch, isFetching } = useMonthlyHistory(
+		period.year,
+		period.month,
 	);
 
-	const geser = useCallback((delta: number) => {
-		setPeriode((prev) => {
-			const next = new Date(prev.tahun, prev.bulan - 1 + delta, 1);
-			return { tahun: next.getFullYear(), bulan: next.getMonth() + 1 };
+	const shift = useCallback((delta: number) => {
+		setPeriod((prev) => {
+			const next = new Date(prev.year, prev.month - 1 + delta, 1);
+			return { year: next.getFullYear(), month: next.getMonth() + 1 };
 		});
 	}, []);
 
-	const bukaDetail = useCallback((item: RekapHarian) => {
-		const tanggal = parseTanggal(item.tanggal);
-		const nilai = `${tanggal.getFullYear()}-${String(tanggal.getMonth() + 1).padStart(2, "0")}-${String(
-			tanggal.getDate(),
+	const openDetail = useCallback((item: DailyRecap) => {
+		const date = parseLocalDate(item.date);
+		const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+			date.getDate(),
 		).padStart(2, "0")}`;
-		router.push({ pathname: "/attendance/riwayat/[tanggal]", params: { tanggal: nilai } });
+		router.push({ pathname: "/attendance/riwayat/[date]", params: { date: value } });
 	}, []);
 
 	return (
-		<View style={styles.layar}>
-			<ScreenHeader title="Riwayat Presensi" subtitle={formatBulanTahun(periode.bulan, periode.tahun)} />
+		<View style={styles.screen}>
+			<ScreenHeader title="Riwayat Presensi" subtitle={formatMonthYear(period.month, period.year)} />
 			<View style={styles.header}>
 				<Pressable
-					onPress={() => geser(-1)}
-					style={styles.navBtn}
+					onPress={() => shift(-1)}
+					style={styles.navButton}
 					accessibilityRole="button"
 					accessibilityLabel="Bulan sebelumnya"
 				>
 					<Text style={styles.navLabel}>‹</Text>
 				</Pressable>
-				<Text style={styles.periode}>{formatBulanTahun(periode.bulan, periode.tahun)}</Text>
+				<Text style={styles.period}>{formatMonthYear(period.month, period.year)}</Text>
 				<Pressable
-					onPress={() => geser(1)}
-					style={styles.navBtn}
+					onPress={() => shift(1)}
+					style={styles.navButton}
 					accessibilityRole="button"
 					accessibilityLabel="Bulan berikutnya"
 				>
@@ -65,7 +65,7 @@ export default function RiwayatScreen() {
 			</View>
 
 			{isLoading ? (
-				<SkeletonLayar jumlah={6} judul={false} />
+				<ScreenSkeleton count={6} showTitle={false} />
 			) : isError || !data ? (
 				<ErrorView message="Gagal memuat riwayat presensi." onRetry={() => void refetch()} />
 			) : (
@@ -80,30 +80,30 @@ export default function RiwayatScreen() {
 					}
 					renderItem={({ item }) => (
 						<Pressable
-							onPress={() => bukaDetail(item)}
+							onPress={() => openDetail(item)}
 							style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
 							accessibilityRole="button"
 						>
-							<View style={styles.itemTanggal}>
-								<Text style={styles.itemHari}>
-									{parseTanggal(item.tanggal).getDate()}
+							<View style={styles.itemDate}>
+								<Text style={styles.itemDay}>
+									{parseLocalDate(item.date).getDate()}
 								</Text>
-								<Text style={styles.itemBulan}>{namaHariPendek(item.tanggal)}</Text>
+								<Text style={styles.itemWeekday}>{shortWeekdayName(item.date)}</Text>
 							</View>
 
 							<View style={styles.itemBody}>
-								<StatusChip label={labelStatusRekap(item.status)} tone={toneStatusRekap(item.status)} />
+								<StatusChip label={getAttendanceStatusLabel(item.status)} tone={getAttendanceStatusTone(item.status)} />
 								<Text style={styles.itemMeta}>
-									Masuk {formatJam(item.masukAktual)} · Pulang {formatJam(item.keluarAktual)}
+									Masuk {formatTime(item.actualCheckIn)} · Pulang {formatTime(item.actualCheckOut)}
 								</Text>
 							</View>
 
-							<View style={styles.itemKanan}>
-								{item.telatMenit > 0 ? (
-									<Text style={[styles.badge, styles.badgeWarning]}>+{item.telatMenit} m</Text>
+							<View style={styles.itemRight}>
+								{item.lateMinutes > 0 ? (
+									<Text style={[styles.badge, styles.badgeWarning]}>+{item.lateMinutes} m</Text>
 								) : null}
-								{item.pulangCepatMenit > 0 ? (
-									<Text style={[styles.badge, styles.badgeInfo]}>-{item.pulangCepatMenit} m</Text>
+								{item.earlyLeaveMinutes > 0 ? (
+									<Text style={[styles.badge, styles.badgeInfo]}>-{item.earlyLeaveMinutes} m</Text>
 								) : null}
 							</View>
 						</Pressable>
@@ -115,7 +115,7 @@ export default function RiwayatScreen() {
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	header: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
 		borderBottomWidth: 1,
 		borderBottomColor: colors.border,
 	},
-	navBtn: {
+	navButton: {
 		width: TOUCH_MIN,
 		height: TOUCH_MIN,
 		alignItems: "center",
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 	},
 	navLabel: { fontSize: fontSize.xl, color: colors.primary, fontWeight: "700", lineHeight: 28 },
-	periode: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
+	period: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
 	list: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
 
 	item: {
@@ -148,12 +148,12 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.surface,
 	},
 	itemPressed: { backgroundColor: colors.backgroundAlt },
-	itemTanggal: { alignItems: "center", minWidth: 36 },
-	itemHari: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
-	itemBulan: { fontSize: fontSize.xs, color: colors.textMuted },
+	itemDate: { alignItems: "center", minWidth: 36 },
+	itemDay: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
+	itemWeekday: { fontSize: fontSize.xs, color: colors.textMuted },
 	itemBody: { flex: 1, gap: spacing.xs, alignItems: "flex-start" },
 	itemMeta: { fontSize: fontSize.xs, color: colors.textMuted },
-	itemKanan: { alignItems: "flex-end", gap: spacing.xs },
+	itemRight: { alignItems: "flex-end", gap: spacing.xs },
 	badge: {
 		fontSize: fontSize.xs,
 		fontWeight: "700",

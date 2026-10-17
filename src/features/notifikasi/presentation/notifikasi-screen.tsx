@@ -3,45 +3,45 @@ import { router } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
-import { formatTanggal } from "@/core/util/format";
-import { ruteMobile, type NotifikasiMobile } from "../data/notifikasi-api";
-import { useNotifikasi, useTandaiDibaca } from "../providers/notifikasi-queries";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
+import { formatDate } from "@/core/util/format";
+import { mobileRoute, type MobileNotification } from "../data/notifikasi-api";
+import { useMarkAsRead, useNotifications } from "../providers/notifikasi-queries";
 import { ApiException } from "@/core/network/api-exception";
 
-/** Layar Notifikasi mobile — daftar in-app + tandai dibaca (preferensi di Pengaturan). */
-export function NotifikasiScreen({ sembunyiKembali = false }: { sembunyiKembali?: boolean }) {
-	const daftar = useNotifikasi();
-	const tandai = useTandaiDibaca();
+/** Mobile Notifications screen — in-app list + mark as read (preferences live in Settings). */
+export function NotifikasiScreen({ hideBack = false }: { hideBack?: boolean }) {
+	const list = useNotifications();
+	const markRead = useMarkAsRead();
 
-	function buka(item: NotifikasiMobile) {
-		if (!item.dibaca) tandai.mutate(item.id);
-		const rute = ruteMobile(item);
-		if (rute) router.push(rute as never);
+	function open(item: MobileNotification) {
+		if (!item.isRead) markRead.mutate(item.id);
+		const route = mobileRoute(item);
+		if (route) router.push(route as never);
 	}
 
-	function galat(error: unknown): string {
+	function getErrorMessage(error: unknown): string {
 		return error instanceof ApiException ? error.message : "Operasi gagal. Coba lagi.";
 	}
 
-	if (daftar.isPending)
+	if (list.isPending)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Notifikasi" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={4} judul={false} />
+				<ScreenSkeleton count={4} showTitle={false} />
 			</View>
 		);
-	if (daftar.isError && daftar.data === undefined)
-		return <ErrorView message="Gagal memuat notifikasi." onRetry={() => void daftar.refetch()} />;
+	if (list.isError && list.data === undefined)
+		return <ErrorView message="Gagal memuat notifikasi." onRetry={() => void list.refetch()} />;
 
-	const items = daftar.data?.items ?? [];
+	const items = list.data?.items ?? [];
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader
 				title="Notifikasi"
 				subtitle={items.length > 0 ? `${items.length} pesan` : undefined}
-				hideBack={sembunyiKembali}
+				hideBack={hideBack}
 			/>
 			<FlatList
 				data={items}
@@ -49,37 +49,37 @@ export function NotifikasiScreen({ sembunyiKembali = false }: { sembunyiKembali?
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={daftar.isRefetching}
-						onRefresh={() => void daftar.refetch()}
+						refreshing={list.isRefetching}
+						onRefresh={() => void list.refetch()}
 						tintColor={colors.primary}
 					/>
 				}
 				ListHeaderComponent={
 					<View style={styles.head}>
 						<Pressable
-							onPress={() => tandai.mutate("semua", { onError: (e) => Alert.alert("Gagal", galat(e)) })}
+							onPress={() => markRead.mutate("all", { onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) })}
 							accessibilityRole="button"
-							style={styles.tandaiSemua}
+							style={styles.markAll}
 						>
-							<Text style={styles.tandaiSemuaLabel}>Tandai semua dibaca</Text>
+							<Text style={styles.markAllLabel}>Tandai semua dibaca</Text>
 						</Pressable>
 					</View>
 				}
 				ListEmptyComponent={<EmptyView message="Belum ada notifikasi." />}
 				renderItem={({ item }) => (
 					<Pressable
-						onPress={() => buka(item)}
+						onPress={() => open(item)}
 						accessibilityRole="button"
-						style={[styles.card, !item.dibaca && styles.cardBaru]}
+						style={[styles.card, !item.isRead && styles.cardUnread]}
 					>
 						<View style={styles.cardHead}>
-							<Text style={[styles.judul, !item.dibaca && styles.judulBaru]}>{item.judul}</Text>
-							{!item.dibaca ? <View style={styles.dot} /> : null}
+							<Text style={[styles.title, !item.isRead && styles.titleUnread]}>{item.title}</Text>
+							{!item.isRead ? <View style={styles.dot} /> : null}
 						</View>
-						<Text style={styles.isi} numberOfLines={3}>
-							{item.isi}
+						<Text style={styles.body} numberOfLines={3}>
+							{item.body}
 						</Text>
-						<Text style={styles.waktu}>{formatTanggal(item.waktu)}</Text>
+						<Text style={styles.time}>{formatDate(item.time)}</Text>
 					</Pressable>
 				)}
 				ItemSeparatorComponent={() => <View style={styles.gap} />}
@@ -89,11 +89,11 @@ export function NotifikasiScreen({ sembunyiKembali = false }: { sembunyiKembali?
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
 	head: { gap: spacing.md, marginBottom: spacing.sm },
-	tandaiSemua: { alignSelf: "flex-end", paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
-	tandaiSemuaLabel: { fontSize: fontSize.xs, color: colors.primary, fontWeight: "700" },
+	markAll: { alignSelf: "flex-end", paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
+	markAllLabel: { fontSize: fontSize.xs, color: colors.primary, fontWeight: "700" },
 	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -102,12 +102,12 @@ const styles = StyleSheet.create({
 		padding: spacing.md,
 		gap: spacing.xs,
 	},
-	cardBaru: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+	cardUnread: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
 	cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	judul: { flex: 1, fontSize: fontSize.sm, color: colors.text },
-	judulBaru: { fontWeight: "700" },
+	title: { flex: 1, fontSize: fontSize.sm, color: colors.text },
+	titleUnread: { fontWeight: "700" },
 	dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-	isi: { fontSize: fontSize.sm, color: colors.textMuted },
-	waktu: { fontSize: fontSize.xs, color: colors.textMuted },
+	body: { fontSize: fontSize.sm, color: colors.textMuted },
+	time: { fontSize: fontSize.xs, color: colors.textMuted },
 	gap: { height: spacing.sm },
 });

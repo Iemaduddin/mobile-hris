@@ -1,8 +1,8 @@
-/** Kontrak data pengajuan — PRD mobile Bag. 5.4 & Bag. 6 (no.10-14). */
+/** Request payload contracts — mobile PRD Bag. 5.4 & Bag. 6 (no.10-14). */
 
-export type JenisPengajuan = "cuti" | "lembur" | "dinas";
+export type RequestKind = "leave" | "overtime" | "duty";
 
-export type StatusPengajuan =
+export type RequestStatus =
 	| "DRAFT"
 	| "DIAJUKAN"
 	| "MENUNGGU_APPROVAL"
@@ -11,69 +11,69 @@ export type StatusPengajuan =
 	| "DIBATALKAN"
 	| "SELESAI";
 
-export type AksiPengajuan = "ajukan" | "batal";
+export type RequestAction = "submit" | "cancel";
 
-export type JenisKetidakhadiran = {
+export type AbsenceType = {
+  id: number;
+  code: string;
+  name: string;
+  category: "CUTI" | "IZIN";
+  usesBalance: boolean;
+  annualQuota: string | null;
+  requiresAttachment: boolean;
+  isActive: boolean;
+};
+
+export type LeaveBalance = {
 	id: number;
-	kode: string;
-	nama: string;
-	kategori: "CUTI" | "IZIN";
-	menggunakanSaldo: boolean;
-	jatahTahunan: string | null;
-	wajibLampiran: boolean;
-	isActive: boolean;
+	employeeId: string;
+	employeeName: string;
+	leaveTypeName: string;
+	year: number;
+	openingBalance: string;
+	closingBalance: string;
 };
 
-export type SaldoCuti = {
-	id: number;
-	karyawanId: string;
-	karyawanNama: string;
-	jenisNama: string;
-	tahun: number;
-	saldoAwal: string;
-	saldoAkhir: string;
-};
-
-export type PengajuanCuti = {
+export type LeaveRequest = {
 	id: string;
-	nomor: string;
-	karyawanId: string;
-	karyawanNama: string;
-	jenisNama: string;
-	menggunakanSaldo: boolean;
-	mulai: string;
-	selesai: string;
-	jumlahHari: string;
+	number: string;
+	employeeId: string;
+	employeeName: string;
+	leaveTypeName: string;
+	usesBalance: boolean;
+	startDate: string;
+	endDate: string;
+	totalDays: string;
 	status: string;
 };
 
-export type PengajuanLembur = {
+export type OvertimeRequest = {
 	id: string;
-	karyawanId: string;
-	karyawanNama: string;
-	tanggal: string;
-	jamMulai: string;
-	jamSelesai: string;
-	jumlahJam: string;
-	alasan: string;
+	employeeId: string;
+	employeeName: string;
+	date: string;
+	startTime: string;
+	endTime: string;
+	totalHours: string;
+	reason: string;
 	status: string;
 };
 
-export type PengajuanDinas = {
+export type DutyRequest = {
 	id: string;
-	nomor: string;
-	karyawanId: string;
-	karyawanNama: string;
-	jenis: string;
-	mulai: string;
-	selesai: string;
-	lokasi: string | null;
+	number: string;
+	employeeId: string;
+	employeeName: string;
+	dutyType: string;
+	startDate: string;
+	endDate: string;
+	location: string | null;
 	status: string;
 };
 
-export type HasilAksiPengajuan = { success: boolean; message: string; id?: string };
+export type RequestActionResult = { success: boolean; message: string; id?: string };
 
-/** Filter status yang ditawarkan di tab Pengajuan. */
+/** Status filter offered on the Requests tab. */
 export const FILTER_STATUS = [
 	{ value: "", label: "Semua" },
 	{ value: "DRAFT", label: "Draf" },
@@ -82,9 +82,9 @@ export const FILTER_STATUS = [
 	{ value: "DITOLAK", label: "Ditolak" },
 ] as const;
 
-export const daftarJenisPengajuan: readonly JenisPengajuan[] = ["cuti", "lembur", "dinas"];
+export const REQUEST_KINDS: readonly RequestKind[] = ["leave", "overtime", "duty"];
 
-export function labelStatusPengajuan(status: string): string {
+export function getRequestStatusLabel(status: string): string {
 	switch (status) {
 		case "DRAFT":
 			return "Draf";
@@ -105,9 +105,9 @@ export function labelStatusPengajuan(status: string): string {
 	}
 }
 
-export type TonePengajuan = "info" | "success" | "warning" | "danger";
+export type RequestTone = "info" | "success" | "warning" | "danger";
 
-export function toneStatusPengajuan(status: string): TonePengajuan {
+export function getRequestStatusTone(status: string): RequestTone {
 	switch (status) {
 		case "DISETUJUI":
 		case "SELESAI":
@@ -123,18 +123,18 @@ export function toneStatusPengajuan(status: string): TonePengajuan {
 	}
 }
 
-export function labelJenisPengajuan(jenis: JenisPengajuan): string {
-	if (jenis === "cuti") return "Cuti";
-	if (jenis === "lembur") return "Lembur";
+export function getRequestKindLabel(kind: RequestKind): string {
+	if (kind === "leave") return "Cuti";
+	if (kind === "overtime") return "Lembur";
 	return "Dinas/WFH";
 }
 
-/** Masih berupa draf — bisa diajukan maupun dibatalkan. */
-export function bisaDiajukan(status: string): boolean {
+/** Still a draft — can be submitted or cancelled. */
+export function canSubmit(status: string): boolean {
 	return status === "DRAFT";
 }
 
-/** Pemohon masih boleh menarik pengajuan — PRD mobile Bag. 5.4: hanya DRAFT/DIAJUKAN. */
-export function bisaDibatalkan(status: string): boolean {
+/** Requester may still withdraw the request — mobile PRD Bag. 5.4: DRAFT/DIAJUKAN only. */
+export function canCancel(status: string): boolean {
 	return status === "DRAFT" || status === "DIAJUKAN";
 }

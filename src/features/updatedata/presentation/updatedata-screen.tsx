@@ -5,203 +5,203 @@ import { AppButton } from "@/core/widgets/app-button";
 import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
 import { DateField, Field } from "@/features/requests/presentation/form-fields";
-import { ambilFotoLampiran, pilihLampiran } from "@/features/requests/data/pick-lampiran";
-import { unggahLampiran, type BerkasPilihan } from "@/features/requests/data/requests-api";
+import { captureAttachmentPhoto, pickAttachmentImage } from "@/features/requests/data/pick-lampiran";
+import { uploadAttachment, type PickedFile } from "@/features/requests/data/requests-api";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
 import { ApiException } from "@/core/network/api-exception";
 import {
-	GELAR,
-	GENDER,
-	HUBUNGAN,
-	JENIS_DOKUMEN,
-	KATEGORI_UPDATE,
-	labelKategoriUpdate,
+	DEGREES,
+	DOCUMENT_TYPES,
+	GENDERS,
+	RELATIONSHIPS,
+	UPDATE_CATEGORIES,
+	getUpdateCategoryLabel,
 } from "../data/updatedata-api";
-import { labelStatusUpdateData, toneStatusUpdateData } from "../models/updatedata";
+import { getDataUpdateStatusLabel, getDataUpdateStatusTone } from "../models/updatedata";
 import {
-	useAksiUpdateData,
-	useBuatUpdateData,
-	useKeluargaSaya,
-	useUpdateDataSaya,
+	useCreateDataUpdate,
+	useDataUpdateAction,
+	useMyDataUpdates,
+	useMyFamily,
 } from "../providers/updatedata-queries";
 
-function labelEnum(v: string): string {
+function formatEnumLabel(v: string): string {
 	return v.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 }
 
 /**
- * Update Data — M-ESS-5. Usulan alamat/kontak/keluarga/pendidikan/dokumen,
- * diverifikasi HR sebelum diterapkan. Sensitif (NIK/rekening) tetap via HR.
+ * Data Update — M-ESS-5. Address/contact/family/education/document proposals,
+ * HR-verified before applying. Sensitive data (NIK/bank) stays HR-only.
  */
 export function UpdateDataScreen() {
-	const karyawanId = useAuthStore((s) => s.karyawan?.id);
-	const daftar = useUpdateDataSaya();
-	const keluarga = useKeluargaSaya();
-	const buat = useBuatUpdateData();
-	const aksi = useAksiUpdateData();
+	const employeeId = useAuthStore((s) => s.employee?.id);
+	const list = useMyDataUpdates();
+	const family = useMyFamily();
+	const create = useCreateDataUpdate();
+	const action = useDataUpdateAction();
 
-	const [kategori, setKategori] = useState<string>("ALAMAT");
+	const [category, setCategory] = useState<string>("ALAMAT");
 	const [form, setForm] = useState<Record<string, string>>({});
-	const [alasan, setAlasan] = useState("");
-	const [berkas, setBerkas] = useState<BerkasPilihan | null>(null);
-	const [mengirim, setMengirim] = useState(false);
-	const [galat, setGalat] = useState<string | null>(null);
+	const [reason, setReason] = useState("");
+	const [file, setFile] = useState<PickedFile | null>(null);
+	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	const sibuk = mengirim || buat.isPending || aksi.isPending;
+	const busy = submitting || create.isPending || action.isPending;
 
-	function set(k: string, v: string) {
+	function setField(k: string, v: string) {
 		setForm((prev) => ({ ...prev, [k]: v }));
 	}
 
-	function gantiKategori(k: string) {
-		setKategori(k);
+	function switchCategory(k: string) {
+		setCategory(k);
 		setForm({});
-		setBerkas(null);
-		setGalat(null);
+		setFile(null);
+		setError(null);
 	}
 
-	function pesanGalat(error: unknown): string {
+	function getErrorMessage(error: unknown): string {
 		return error instanceof ApiException ? error.message : "Operasi gagal. Coba lagi.";
 	}
 
-	async function pilihFoto(sumber: "kamera" | "galeri") {
-		const hasil = sumber === "kamera" ? await ambilFotoLampiran() : await pilihLampiran();
-		if (hasil.status === "dipilih") {
-			setBerkas(hasil.berkas);
-			setGalat(null);
-		} else if (hasil.status === "izin_ditolak") {
+	async function pickPhoto(source: "camera" | "gallery") {
+		const result = source === "camera" ? await captureAttachmentPhoto() : await pickAttachmentImage();
+		if (result.status === "picked") {
+			setFile(result.file);
+			setError(null);
+		} else if (result.status === "permission_denied") {
 			Alert.alert("Izin dibutuhkan", "Aktifkan izin kamera/galeri di pengaturan perangkat.");
-		} else if (hasil.status === "kebesaran") {
+		} else if (result.status === "too_large") {
 			Alert.alert("Terlalu besar", "Ukuran foto maksimal 10 MB.");
 		}
 	}
 
-	async function kirim() {
-		if (!alasan.trim()) {
-			setGalat("Alasan perubahan wajib diisi.");
+	async function submit() {
+		if (!reason.trim()) {
+			setError("Alasan perubahan wajib diisi.");
 			return;
 		}
-		if (!karyawanId) {
-			setGalat("Akun belum tertaut ke data karyawan.");
+		if (!employeeId) {
+			setError("Akun belum tertaut ke data karyawan.");
 			return;
 		}
-		const dataBaru: Record<string, unknown> = {};
+		const newData: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(form)) {
-			if (v !== "") dataBaru[k] = v;
+			if (v !== "") newData[k] = v;
 		}
-		if (kategori === "KELUARGA" && form.targetId === "baru") delete dataBaru.targetId;
-		if (kategori === "DOKUMEN" && berkas) {
+		if (category === "KELUARGA" && form.targetId === "new") delete newData.targetId;
+		if (category === "DOKUMEN" && file) {
 			try {
-				const unggah = await unggahLampiran(berkas, karyawanId);
-				dataBaru.urlFile = unggah.path;
-			} catch (error) {
-				setGalat(`Gagal mengunggah dokumen: ${pesanGalat(error)}`);
+				const uploaded = await uploadAttachment(file, employeeId);
+				newData.fileUrl = uploaded.path;
+			} catch (err) {
+				setError(`Gagal mengunggah dokumen: ${getErrorMessage(err)}`);
 				return;
 			}
 		}
-		setGalat(null);
-		setMengirim(true);
+		setError(null);
+		setSubmitting(true);
 		try {
-			const draf = await buat.mutateAsync({
-				kategori,
+			const draft = await create.mutateAsync({
+				category,
 				targetId:
-					kategori === "KELUARGA" && form.targetId && form.targetId !== "baru" ? form.targetId : undefined,
-				dataBaru,
-				alasan: alasan.trim(),
+					category === "KELUARGA" && form.targetId && form.targetId !== "new" ? form.targetId : undefined,
+				newData,
+				reason: reason.trim(),
 			});
-			await aksi.mutateAsync({ id: draf.id, aksi: "ajukan" });
+			await action.mutateAsync({ id: draft.id, action: "submit" });
 			Alert.alert("Terkirim", "Usulan diteruskan ke HR untuk verifikasi.");
 			setForm({});
-			setAlasan("");
-			setBerkas(null);
-		} catch (error) {
-			setGalat(pesanGalat(error));
+			setReason("");
+			setFile(null);
+		} catch (err) {
+			setError(getErrorMessage(err));
 		} finally {
-			setMengirim(false);
+			setSubmitting(false);
 		}
 	}
 
-	if (daftar.isPending)
+	if (list.isPending)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Update Data" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
-	if (daftar.isError && daftar.data === undefined)
+	if (list.isError && list.data === undefined)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Update Data" />
-				<ErrorView message="Gagal memuat usulan." onRetry={() => void daftar.refetch()} />
+				<ErrorView message="Gagal memuat usulan." onRetry={() => void list.refetch()} />
 			</View>
 		);
 
-	const items = daftar.data ?? [];
-	const anggota = keluarga.data ?? [];
+	const items = list.data ?? [];
+	const members = family.data ?? [];
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader title="Update Data" subtitle={items.length > 0 ? `${items.length} usulan` : undefined} />
 			<FlatList
-				data={[{ kunci: "form" }]}
-				keyExtractor={(item) => item.kunci}
+				data={[{ key: "form" }]}
+				keyExtractor={(item) => item.key}
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={daftar.isRefetching}
-						onRefresh={() => void daftar.refetch()}
+						refreshing={list.isRefetching}
+						onRefresh={() => void list.refetch()}
 						tintColor={colors.primary}
 					/>
 				}
 				renderItem={() => (
-					<View style={styles.gapBesar}>
+					<View style={styles.bigGap}>
 						<View style={styles.form}>
-							<Text style={styles.formJudul}>Usulan Baru</Text>
-							<Text style={styles.formSub}>Diverifikasi HR sebelum diterapkan.</Text>
+							<Text style={styles.formTitle}>Usulan Baru</Text>
+							<Text style={styles.formSubtitle}>Diverifikasi HR sebelum diterapkan.</Text>
 
 							<Field label="Kategori">
 								<View style={styles.chips}>
-									{KATEGORI_UPDATE.map((k) => (
+									{UPDATE_CATEGORIES.map((k) => (
 										<Pressable
 											key={k}
-											onPress={() => gantiKategori(k)}
+											onPress={() => switchCategory(k)}
 											accessibilityRole="button"
-											accessibilityState={{ selected: kategori === k }}
-											style={[styles.chip, kategori === k && styles.chipAktif]}
+											accessibilityState={{ selected: category === k }}
+											style={[styles.chip, category === k && styles.chipActive]}
 										>
-											<Text style={[styles.chipText, kategori === k && styles.chipTextAktif]}>
-												{labelKategoriUpdate(k)}
+											<Text style={[styles.chipText, category === k && styles.chipTextActive]}>
+												{getUpdateCategoryLabel(k)}
 											</Text>
 										</Pressable>
 									))}
 								</View>
 							</Field>
 
-							{kategori === "ALAMAT" && (
+							{category === "ALAMAT" && (
 								<AppTextField
 									label="Alamat baru"
-									value={form.alamat ?? ""}
-									onChangeText={(v) => set("alamat", v)}
+									value={form.address ?? ""}
+									onChangeText={(v) => setField("address", v)}
 									placeholder="cth. Jl. Baru No. 10"
 								/>
 							)}
 
-							{kategori === "KONTAK" && (
+							{category === "KONTAK" && (
 								<>
 									<AppTextField
 										label="Telepon baru"
-										value={form.telepon ?? ""}
-										onChangeText={(v) => set("telepon", v)}
+										value={form.phone ?? ""}
+										onChangeText={(v) => setField("phone", v)}
 										keyboardType="phone-pad"
 										placeholder="cth. 081234567890"
 									/>
 									<AppTextField
 										label="Email baru"
 										value={form.email ?? ""}
-										onChangeText={(v) => set("email", v)}
+										onChangeText={(v) => setField("email", v)}
 										keyboardType="email-address"
 										autoCapitalize="none"
 										placeholder="cth. nama@baru.id"
@@ -209,47 +209,47 @@ export function UpdateDataScreen() {
 								</>
 							)}
 
-							{kategori === "KELUARGA" && (
+							{category === "KELUARGA" && (
 								<>
 									<Field label="Target">
 										<View style={styles.chips}>
 											<Pressable
-												onPress={() => set("targetId", "baru")}
+												onPress={() => setField("targetId", "new")}
 												accessibilityRole="button"
-												style={[styles.chip, (form.targetId ?? "baru") === "baru" && styles.chipAktif]}
+												style={[styles.chip, (form.targetId ?? "new") === "new" && styles.chipActive]}
 											>
 												<Text
-													style={[styles.chipText, (form.targetId ?? "baru") === "baru" && styles.chipTextAktif]}
+													style={[styles.chipText, (form.targetId ?? "new") === "new" && styles.chipTextActive]}
 												>
 													Anggota baru
 												</Text>
 											</Pressable>
-											{anggota.map((a) => (
+											{members.map((a) => (
 												<Pressable
 													key={a.id}
-													onPress={() => set("targetId", a.id)}
+													onPress={() => setField("targetId", a.id)}
 													accessibilityRole="button"
-													style={[styles.chip, form.targetId === a.id && styles.chipAktif]}
+													style={[styles.chip, form.targetId === a.id && styles.chipActive]}
 												>
-													<Text style={[styles.chipText, form.targetId === a.id && styles.chipTextAktif]}>
-														{a.nama}
+													<Text style={[styles.chipText, form.targetId === a.id && styles.chipTextActive]}>
+														{a.name}
 													</Text>
 												</Pressable>
 											))}
 										</View>
 									</Field>
-									<AppTextField label="Nama" value={form.nama ?? ""} onChangeText={(v) => set("nama", v)} />
+									<AppTextField label="Nama" value={form.name ?? ""} onChangeText={(v) => setField("name", v)} />
 									<Field label="Hubungan">
 										<View style={styles.chips}>
-											{HUBUNGAN.map((h) => (
+											{RELATIONSHIPS.map((h) => (
 												<Pressable
 													key={h}
-													onPress={() => set("hubungan", h)}
+													onPress={() => setField("relation", h)}
 													accessibilityRole="button"
-													style={[styles.chip, form.hubungan === h && styles.chipAktif]}
+													style={[styles.chip, form.relation === h && styles.chipActive]}
 												>
-													<Text style={[styles.chipText, form.hubungan === h && styles.chipTextAktif]}>
-														{labelEnum(h)}
+													<Text style={[styles.chipText, form.relation === h && styles.chipTextActive]}>
+														{formatEnumLabel(h)}
 													</Text>
 												</Pressable>
 											))}
@@ -257,15 +257,15 @@ export function UpdateDataScreen() {
 									</Field>
 									<Field label="Jenis kelamin">
 										<View style={styles.chips}>
-											{GENDER.map((g) => (
+											{GENDERS.map((g) => (
 												<Pressable
 													key={g}
-													onPress={() => set("gender", g)}
+													onPress={() => setField("gender", g)}
 													accessibilityRole="button"
-													style={[styles.chip, form.gender === g && styles.chipAktif]}
+													style={[styles.chip, form.gender === g && styles.chipActive]}
 												>
-													<Text style={[styles.chipText, form.gender === g && styles.chipTextAktif]}>
-														{labelEnum(g)}
+													<Text style={[styles.chipText, form.gender === g && styles.chipTextActive]}>
+														{formatEnumLabel(g)}
 													</Text>
 												</Pressable>
 											))}
@@ -273,145 +273,145 @@ export function UpdateDataScreen() {
 									</Field>
 									<DateField
 										label="Tanggal lahir"
-										value={form.tanggalLahir ?? ""}
-										onChange={(v) => set("tanggalLahir", v)}
+										value={form.birthDate ?? ""}
+										onChange={(v) => setField("birthDate", v)}
 									/>
-									<AppTextField label="NIK (opsional)" value={form.nik ?? ""} onChangeText={(v) => set("nik", v)} keyboardType="numeric" />
-									<AppTextField label="Pekerjaan (opsional)" value={form.pekerjaan ?? ""} onChangeText={(v) => set("pekerjaan", v)} />
+									<AppTextField label="NIK (opsional)" value={form.nik ?? ""} onChangeText={(v) => setField("nik", v)} keyboardType="numeric" />
+									<AppTextField label="Pekerjaan (opsional)" value={form.occupation ?? ""} onChangeText={(v) => setField("occupation", v)} />
 								</>
 							)}
 
-							{kategori === "PENDIDIKAN" && (
+							{category === "PENDIDIKAN" && (
 								<>
 									<Field label="Gelar">
 										<View style={styles.chips}>
-											{GELAR.map((g) => (
+											{DEGREES.map((g) => (
 												<Pressable
 													key={g}
-													onPress={() => set("gelar", g)}
+													onPress={() => setField("degree", g)}
 													accessibilityRole="button"
-													style={[styles.chip, form.gelar === g && styles.chipAktif]}
+													style={[styles.chip, form.degree === g && styles.chipActive]}
 												>
-													<Text style={[styles.chipText, form.gelar === g && styles.chipTextAktif]}>
+													<Text style={[styles.chipText, form.degree === g && styles.chipTextActive]}>
 														{g.replace("_", "/")}
 													</Text>
 												</Pressable>
 											))}
 										</View>
 									</Field>
-									<AppTextField label="Institusi" value={form.institusi ?? ""} onChangeText={(v) => set("institusi", v)} />
-									<AppTextField label="Jurusan (opsional)" value={form.jurusan ?? ""} onChangeText={(v) => set("jurusan", v)} />
-									<AppTextField label="Tahun mulai (opsional)" value={form.tahunMulai ?? ""} onChangeText={(v) => set("tahunMulai", v)} keyboardType="numeric" />
-									<AppTextField label="Tahun lulus (opsional)" value={form.tahunLulus ?? ""} onChangeText={(v) => set("tahunLulus", v)} keyboardType="numeric" />
-									<AppTextField label="IPK (opsional)" value={form.ipk ?? ""} onChangeText={(v) => set("ipk", v)} keyboardType="decimal-pad" />
+									<AppTextField label="Institusi" value={form.institution ?? ""} onChangeText={(v) => setField("institution", v)} />
+									<AppTextField label="Jurusan (opsional)" value={form.major ?? ""} onChangeText={(v) => setField("major", v)} />
+									<AppTextField label="Tahun mulai (opsional)" value={form.startYear ?? ""} onChangeText={(v) => setField("startYear", v)} keyboardType="numeric" />
+									<AppTextField label="Tahun lulus (opsional)" value={form.graduationYear ?? ""} onChangeText={(v) => setField("graduationYear", v)} keyboardType="numeric" />
+									<AppTextField label="IPK (opsional)" value={form.gpa ?? ""} onChangeText={(v) => setField("gpa", v)} keyboardType="decimal-pad" />
 								</>
 							)}
 
-							{kategori === "DOKUMEN" && (
+							{category === "DOKUMEN" && (
 								<>
 									<Field label="Jenis dokumen">
 										<View style={styles.chips}>
-											{JENIS_DOKUMEN.map((j) => (
+											{DOCUMENT_TYPES.map((j) => (
 												<Pressable
 													key={j}
-													onPress={() => set("jenisDokumen", j)}
+													onPress={() => setField("documentType", j)}
 													accessibilityRole="button"
-													style={[styles.chip, form.jenisDokumen === j && styles.chipAktif]}
+													style={[styles.chip, form.documentType === j && styles.chipActive]}
 												>
-													<Text style={[styles.chipText, form.jenisDokumen === j && styles.chipTextAktif]}>
-														{labelEnum(j)}
+													<Text style={[styles.chipText, form.documentType === j && styles.chipTextActive]}>
+														{formatEnumLabel(j)}
 													</Text>
 												</Pressable>
 											))}
 										</View>
 									</Field>
-									<AppTextField label="Nama dokumen" value={form.nama ?? ""} onChangeText={(v) => set("nama", v)} />
+									<AppTextField label="Nama dokumen" value={form.name ?? ""} onChangeText={(v) => setField("name", v)} />
 									<Field label="File (foto)">
-										{berkas ? (
-											<View style={styles.pratinjau}>
-												<Image source={{ uri: berkas.uri }} style={styles.foto} resizeMode="cover" />
+										{file ? (
+											<View style={styles.preview}>
+												<Image source={{ uri: file.uri }} style={styles.photo} resizeMode="cover" />
 												<Pressable
-													onPress={() => setBerkas(null)}
+													onPress={() => setFile(null)}
 													accessibilityRole="button"
 													accessibilityLabel="Hapus foto"
-													style={styles.hapusFoto}
+													style={styles.removePhoto}
 												>
-													<Text style={styles.hapusFotoText}>✕ Hapus</Text>
+													<Text style={styles.removePhotoText}>✕ Hapus</Text>
 												</Pressable>
 											</View>
 										) : (
-											<View style={styles.fotoRow}>
-												<View style={styles.fotoBtn}>
-													<AppButton label="📷 Kamera" variant="outline" onPress={() => void pilihFoto("kamera")} />
+											<View style={styles.photoRow}>
+												<View style={styles.photoButton}>
+													<AppButton label="📷 Kamera" variant="outline" onPress={() => void pickPhoto("camera")} />
 												</View>
-												<View style={styles.fotoBtn}>
-													<AppButton label="🖼 Galeri" variant="outline" onPress={() => void pilihFoto("galeri")} />
+												<View style={styles.photoButton}>
+													<AppButton label="🖼 Galeri" variant="outline" onPress={() => void pickPhoto("gallery")} />
 												</View>
 											</View>
 										)}
 									</Field>
 									<DateField
 										label="Kadaluarsa (opsional)"
-										value={form.tanggalKadaluarsa ?? ""}
-										onChange={(v) => set("tanggalKadaluarsa", v)}
+										value={form.expiryDate ?? ""}
+										onChange={(v) => setField("expiryDate", v)}
 									/>
-									<AppTextField label="Catatan (opsional)" value={form.catatan ?? ""} onChangeText={(v) => set("catatan", v)} />
+									<AppTextField label="Catatan (opsional)" value={form.note ?? ""} onChangeText={(v) => setField("note", v)} />
 								</>
 							)}
 
 							<AppTextField
 								label="Alasan perubahan"
-								value={alasan}
-								onChangeText={setAlasan}
+								value={reason}
+								onChangeText={setReason}
 								placeholder="cth. Pindah rumah"
 							/>
 
-							{galat ? <Text style={styles.galat}>{galat}</Text> : null}
+							{error ? <Text style={styles.error}>{error}</Text> : null}
 
-							<AppButton label="Kirim Usulan" onPress={() => void kirim()} loading={sibuk} />
+							<AppButton label="Kirim Usulan" onPress={() => void submit()} loading={busy} />
 						</View>
 
-						<View style={styles.seksi}>
-							<Text style={styles.seksiJudul}>Usulan saya ({items.length})</Text>
+						<View style={styles.section}>
+							<Text style={styles.sectionTitle}>Usulan saya ({items.length})</Text>
 							{items.length === 0 ? (
 								<Text style={styles.meta}>Belum ada usulan.</Text>
 							) : (
 								items.map((item) => (
 									<View key={item.id} style={styles.card}>
 										<View style={styles.cardHead}>
-											<Text style={styles.judul} numberOfLines={1}>
-												{item.nomor}
+											<Text style={styles.title} numberOfLines={1}>
+												{item.number}
 											</Text>
-											<StatusChip label={labelStatusUpdateData(item.status)} tone={toneStatusUpdateData(item.status)} />
+											<StatusChip label={getDataUpdateStatusLabel(item.status)} tone={getDataUpdateStatusTone(item.status)} />
 										</View>
 										<Text style={styles.meta} numberOfLines={2}>
-											{item.ringkasan}
+											{item.summary}
 										</Text>
 										{item.status === "DRAFT" ? (
-											<View style={styles.aksiRow}>
-												<View style={styles.aksiBtn}>
+											<View style={styles.actionRow}>
+												<View style={styles.actionButton}>
 													<AppButton
 														label="Ajukan"
 														onPress={() =>
-															aksi.mutate(
-																{ id: item.id, aksi: "ajukan" },
-																{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+															action.mutate(
+																{ id: item.id, action: "submit" },
+																{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 															)
 														}
-														loading={aksi.isPending}
+														loading={action.isPending}
 													/>
 												</View>
-												<View style={styles.aksiBtn}>
+												<View style={styles.actionButton}>
 													<AppButton
 														label="Batal"
 														variant="outline"
 														onPress={() =>
-															aksi.mutate(
-																{ id: item.id, aksi: "batal" },
-																{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+															action.mutate(
+																{ id: item.id, action: "cancel" },
+																{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 															)
 														}
-														loading={aksi.isPending}
+														loading={action.isPending}
 													/>
 												</View>
 											</View>
@@ -428,9 +428,9 @@ export function UpdateDataScreen() {
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
-	gapBesar: { gap: spacing.lg },
+	bigGap: { gap: spacing.lg },
 	form: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -439,8 +439,8 @@ const styles = StyleSheet.create({
 		padding: spacing.md,
 		gap: spacing.xs,
 	},
-	formJudul: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-	formSub: { fontSize: fontSize.xs, color: colors.textMuted },
+	formTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
+	formSubtitle: { fontSize: fontSize.xs, color: colors.textMuted },
 	chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
 	chip: {
 		minHeight: 36,
@@ -451,14 +451,14 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		backgroundColor: colors.surface,
 	},
-	chipAktif: { backgroundColor: colors.primary, borderColor: colors.primary },
+	chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
 	chipText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: "600" },
-	chipTextAktif: { color: colors.textInverse },
-	pratinjau: { gap: spacing.sm },
-	foto: { width: "100%", height: 200, borderRadius: radius.md, backgroundColor: colors.backgroundAlt },
-	fotoRow: { flexDirection: "row", gap: spacing.sm },
-	fotoBtn: { flex: 1 },
-	hapusFoto: {
+	chipTextActive: { color: colors.textInverse },
+	preview: { gap: spacing.sm },
+	photo: { width: "100%", height: 200, borderRadius: radius.md, backgroundColor: colors.backgroundAlt },
+	photoRow: { flexDirection: "row", gap: spacing.sm },
+	photoButton: { flex: 1 },
+	removePhoto: {
 		minHeight: TOUCH_MIN,
 		alignItems: "center",
 		justifyContent: "center",
@@ -466,10 +466,10 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: colors.danger,
 	},
-	hapusFotoText: { fontSize: fontSize.sm, fontWeight: "600", color: colors.danger },
-	galat: { fontSize: fontSize.xs, color: colors.danger },
-	seksi: { gap: spacing.sm },
-	seksiJudul: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	removePhotoText: { fontSize: fontSize.sm, fontWeight: "600", color: colors.danger },
+	error: { fontSize: fontSize.xs, color: colors.danger },
+	section: { gap: spacing.sm },
+	sectionTitle: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
 	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -479,9 +479,9 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 	},
 	cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	judul: { flex: 1, fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	title: { flex: 1, fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
 	meta: { fontSize: fontSize.xs, color: colors.textMuted },
-	aksiRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-	aksiBtn: { flex: 1 },
+	actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+	actionButton: { flex: 1 },
 	gap: { height: spacing.sm },
 });

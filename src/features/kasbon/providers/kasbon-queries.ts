@@ -1,40 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buatKasbon, getKasbonSaya, ubahStatusKasbon, type InputKasbon } from "../data/kasbon-api";
+import { createSalaryAdvance, getMySalaryAdvances, updateSalaryAdvanceStatus, type SalaryAdvanceInput } from "../data/kasbon-api";
 
-export const kasbonKeys = {
-	all: ["kasbon"] as const,
-	daftar: () => [...kasbonKeys.all, "daftar"] as const,
+export const salaryAdvanceKeys = {
+	all: ["salary-advances"] as const,
+	list: () => [...salaryAdvanceKeys.all, "list"] as const,
 };
 
-/** Daftar kasbon milik sendiri. */
-export function useKasbonSaya() {
+/** Owned salary advance list. */
+export function useMySalaryAdvances() {
 	return useQuery({
-		queryKey: kasbonKeys.daftar(),
-		queryFn: ({ signal }) => getKasbonSaya(signal),
+		queryKey: salaryAdvanceKeys.list(),
+		queryFn: ({ signal }) => getMySalaryAdvances(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Buat draf kasbon. */
-export function useBuatKasbon() {
+/** Create a salary advance draft. */
+export function useCreateSalaryAdvance() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (input: InputKasbon) => buatKasbon(input),
+		mutationFn: (input: SalaryAdvanceInput) => createSalaryAdvance(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: kasbonKeys.all });
+			void queryClient.invalidateQueries({ queryKey: salaryAdvanceKeys.all });
 		},
 	});
 }
 
-/** Ajukan / batalkan kasbon. */
-export function useAksiKasbon() {
+/** Submit / cancel a salary advance. */
+export function useSalaryAdvanceAction() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, aksi }: { id: string; aksi: "ajukan" | "batal" }) => ubahStatusKasbon(id, aksi),
+		mutationFn: ({ id, action }: { id: string; action: "submit" | "cancel" }) => updateSalaryAdvanceStatus(id, action),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: kasbonKeys.all });
+			void queryClient.invalidateQueries({ queryKey: salaryAdvanceKeys.all });
 		},
 	});
 }

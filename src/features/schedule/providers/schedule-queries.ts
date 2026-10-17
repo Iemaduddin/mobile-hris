@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { getJadwal } from "../data/schedule-api";
+import { getSchedule } from "../data/schedule-api";
 
-export const jadwalKeys = {
-	all: ["jadwal"] as const,
-	list: (mulai?: string, selesai?: string) => [...jadwalKeys.all, mulai ?? "default", selesai ?? "default"] as const,
+export const scheduleKeys = {
+	all: ["schedules"] as const,
+	list: (start?: string, end?: string) => [...scheduleKeys.all, start ?? "default", end ?? "default"] as const,
 };
 
-/** Roster shift + penugasan kalender (default: 7 hari ke depan). */
-export function useJadwal(mulai?: string, selesai?: string) {
+/** Shift roster + calendar assignments (default: next 7 days). */
+export function useSchedule(start?: string, end?: string) {
 	return useQuery({
-		queryKey: jadwalKeys.list(mulai, selesai),
-		queryFn: ({ signal }) => getJadwal(mulai, selesai, signal),
+		queryKey: scheduleKeys.list(start, end),
+		queryFn: ({ signal }) => getSchedule(start, end, signal),
 	});
 }

@@ -1,27 +1,27 @@
-/** Kontrak `GET /api/v1/schedule` — PRD mobile Bag. 5.3.D (read-only). */
+/** `GET /api/v1/schedule` contract — mobile PRD Bag. 5.3.D (read-only). */
 
 export type RosterShift = {
 	/** `YYYY-MM-DD` */
-	tanggal: string;
-	kode: string;
-	nama: string;
+	date: string;
+	code: string;
+	name: string;
 	/** `HH:mm` */
-	jamMasuk: string | null;
+	checkInTime: string | null;
 	/** `HH:mm` */
-	jamKeluar: string | null;
-	/** `true` = shift melewati tengah malam (mis. 23:00–07:00). */
-	lintasHari: boolean;
+	checkOutTime: string | null;
+	/** `true` = overnight shift (e.g. 23:00–07:00). */
+	overnight: boolean;
 };
 
-export type PenugasanKalender = {
-	kalender: string;
+export type CalendarAssignment = {
+	calendar: string;
 	/** `YYYY-MM-DD` */
-	mulai: string;
-	/** `YYYY-MM-DD` | null (null = masih berjalan) */
-	selesai: string | null;
+	start: string;
+	/** `YYYY-MM-DD` | null (null = still running) */
+	end: string | null;
 };
 
-export type JadwalSaya = {
+export type MySchedule = {
 	roster: RosterShift[];
-	penugasan: PenugasanKalender[];
+	assignments: CalendarAssignment[];
 };

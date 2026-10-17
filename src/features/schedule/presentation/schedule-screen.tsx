@@ -2,45 +2,45 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { ErrorView, ScreenHeader } from "@/core/widgets";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import {
-	formatTanggalPanjang,
-	namaHariPendek,
-	parseTanggal,
-	tambahHari,
-	toTanggalOnly,
+	formatLongDate,
+	shortWeekdayName,
+	parseLocalDate,
+	addDays,
+	toDateOnly,
 } from "@/core/util/format";
-import { useJadwal } from "../providers/schedule-queries";
+import { useSchedule } from "../providers/schedule-queries";
 import type { RosterShift } from "../models/schedule";
 
-const JUMLAH_HARI = 7;
+const DAY_COUNT = 7;
 
 /**
- * Jadwal saya (PRD mobile Bag. 5.3.D) — read-only.
- * Roster shift + penugasan kalender, dengan penanda khusus shift lintas hari.
+ * My schedule (mobile PRD Bag. 5.3.D) — read-only.
+ * Shift roster + calendar assignments, with overnight-shift markers.
  */
-export default function JadwalScreen() {
-	const [awal, setAwal] = useState(() => toTanggalOnly(new Date()));
-	const akhir = useMemo(() => tambahHari(awal, JUMLAH_HARI - 1), [awal]);
+export default function ScheduleScreen() {
+	const [start, setStart] = useState(() => toDateOnly(new Date()));
+	const end = useMemo(() => addDays(start, DAY_COUNT - 1), [start]);
 
-	const { data, isLoading, isError, refetch, isFetching } = useJadwal(awal, akhir);
+	const { data, isLoading, isError, refetch, isFetching } = useSchedule(start, end);
 
-	const rosterPerHari = useMemo(() => {
+	const rosterByDay = useMemo(() => {
 		const map = new Map<string, RosterShift>();
-		for (const item of data?.roster ?? []) map.set(item.tanggal.slice(0, 10), item);
+		for (const item of data?.roster ?? []) map.set(item.date.slice(0, 10), item);
 		return map;
 	}, [data]);
 
-	const daftarTanggal = useMemo(
-		() => Array.from({ length: JUMLAH_HARI }, (_, index) => tambahHari(awal, index)),
-		[awal],
+	const dateList = useMemo(
+		() => Array.from({ length: DAY_COUNT }, (_, index) => addDays(start, index)),
+		[start],
 	);
 
-	const geser = useCallback((delta: number) => {
-		setAwal((prev) => tambahHari(prev, delta * JUMLAH_HARI));
+	const shift = useCallback((delta: number) => {
+		setStart((prev) => addDays(prev, delta * DAY_COUNT));
 	}, []);
 
-	const hariIni = toTanggalOnly(new Date());
+	const today = toDateOnly(new Date());
 
 	return (
 		<>
@@ -48,8 +48,8 @@ export default function JadwalScreen() {
 
 			<View style={styles.nav}>
 				<Pressable
-					onPress={() => geser(-1)}
-					style={styles.navBtn}
+					onPress={() => shift(-1)}
+					style={styles.navButton}
 					accessibilityRole="button"
 					accessibilityLabel="Rentang sebelumnya"
 				>
@@ -57,13 +57,13 @@ export default function JadwalScreen() {
 				</Pressable>
 				<View style={styles.navTitle}>
 					<Text style={styles.navRange}>
-						{formatTanggalPanjang(awal)} – {formatTanggalPanjang(akhir)}
+						{formatLongDate(start)} – {formatLongDate(end)}
 					</Text>
 					{isFetching ? <Text style={styles.navLoading}>Memuat…</Text> : null}
 				</View>
 				<Pressable
-					onPress={() => geser(1)}
-					style={styles.navBtn}
+					onPress={() => shift(1)}
+					style={styles.navButton}
 					accessibilityRole="button"
 					accessibilityLabel="Rentang berikutnya"
 				>
@@ -72,7 +72,7 @@ export default function JadwalScreen() {
 			</View>
 
 			{isLoading ? (
-				<SkeletonLayar jumlah={5} judul={false} />
+				<ScreenSkeleton count={5} showTitle={false} />
 			) : isError || !data ? (
 				<ErrorView message="Gagal memuat jadwal." onRetry={() => void refetch()} />
 			) : (
@@ -87,53 +87,53 @@ export default function JadwalScreen() {
 					}
 				>
 					<Text style={styles.section}>Roster Shift</Text>
-					{daftarTanggal.map((tanggal) => {
-						const roster = rosterPerHari.get(tanggal);
-						const isHariIni = tanggal === hariIni;
+					{dateList.map((date) => {
+						const roster = rosterByDay.get(date);
+						const isToday = date === today;
 
 						return (
 							<View
-								key={tanggal}
-								style={[styles.hari, isHariIni && styles.hariIni, !roster && styles.hariKosong]}
+								key={date}
+								style={[styles.day, isToday && styles.today, !roster && styles.dayEmpty]}
 							>
-								<View style={styles.hariKiri}>
-									<Text style={styles.hariNama}>{namaHariPendek(tanggal)}</Text>
-									<Text style={styles.hariTanggal}>{parseTanggal(tanggal).getDate()}</Text>
+								<View style={styles.dayLeft}>
+									<Text style={styles.dayName}>{shortWeekdayName(date)}</Text>
+									<Text style={styles.dayDate}>{parseLocalDate(date).getDate()}</Text>
 								</View>
 
 								{roster ? (
-									<View style={styles.hariBody}>
-										<Text style={styles.shiftNama}>{roster.nama}</Text>
-										<Text style={styles.shiftJam}>
-											{roster.jamMasuk ?? "-"} – {roster.jamKeluar ?? "-"}
+									<View style={styles.dayBody}>
+										<Text style={styles.shiftName}>{roster.name}</Text>
+										<Text style={styles.shiftTime}>
+											{roster.checkInTime ?? "-"} – {roster.checkOutTime ?? "-"}
 										</Text>
-										{roster.lintasHari ? (
-											<Text style={styles.lintasHari}>
+										{roster.overnight ? (
+											<Text style={styles.overnight}>
 												Shift lintas hari — dimulai dari tanggal sebelumnya.
 											</Text>
 										) : null}
 									</View>
 								) : (
-									<View style={styles.hariBody}>
-										<Text style={styles.tidakAda}>Tidak ada roster</Text>
+									<View style={styles.dayBody}>
+										<Text style={styles.none}>Tidak ada roster</Text>
 									</View>
 								)}
 
-								{isHariIni ? <Text style={styles.hariIniBadge}>Hari ini</Text> : null}
+								{isToday ? <Text style={styles.todayBadge}>Hari ini</Text> : null}
 							</View>
 						);
 					})}
 
 					<Text style={[styles.section, { marginTop: spacing.lg }]}>Penugasan Kalender</Text>
-					{data.penugasan.length === 0 ? (
-						<Text style={styles.kosong}>Tidak ada penugasan kalender.</Text>
+					{data.assignments.length === 0 ? (
+						<Text style={styles.empty}>Tidak ada penugasan kalender.</Text>
 					) : (
-						data.penugasan.map((item) => (
-							<View key={`${item.kalender}-${item.mulai}`} style={styles.penugasan}>
-								<Text style={styles.shiftNama}>{item.kalender}</Text>
-								<Text style={styles.shiftJam}>
-									{formatTanggalPanjang(item.mulai)}
-									{item.selesai ? ` – ${formatTanggalPanjang(item.selesai)}` : " – berjalan"}
+						data.assignments.map((item) => (
+							<View key={`${item.calendar}-${item.start}`} style={styles.assignment}>
+								<Text style={styles.shiftName}>{item.calendar}</Text>
+								<Text style={styles.shiftTime}>
+									{formatLongDate(item.start)}
+									{item.end ? ` – ${formatLongDate(item.end)}` : " – berjalan"}
 								</Text>
 							</View>
 						))
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
 		borderBottomWidth: 1,
 		borderBottomColor: colors.border,
 	},
-	navBtn: {
+	navButton: {
 		width: TOUCH_MIN,
 		height: TOUCH_MIN,
 		alignItems: "center",
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
 		marginBottom: spacing.xs,
 	},
 
-	hari: {
+	day: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: spacing.md,
@@ -186,13 +186,13 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		backgroundColor: colors.surface,
 	},
-	hariIni: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-	hariKosong: { opacity: 0.65 },
-	hariKiri: { alignItems: "center", minWidth: 40 },
-	hariNama: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: "700" },
-	hariTanggal: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
-	hariBody: { flex: 1, gap: 2 },
-	hariIniBadge: {
+	today: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+	dayEmpty: { opacity: 0.65 },
+	dayLeft: { alignItems: "center", minWidth: 40 },
+	dayName: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: "700" },
+	dayDate: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
+	dayBody: { flex: 1, gap: 2 },
+	todayBadge: {
 		fontSize: fontSize.xs,
 		fontWeight: "700",
 		color: colors.primaryDark,
@@ -203,12 +203,12 @@ const styles = StyleSheet.create({
 		overflow: "hidden",
 	},
 
-	shiftNama: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
-	shiftJam: { fontSize: fontSize.xs, color: colors.textMuted },
-	lintasHari: { fontSize: fontSize.xs, color: colors.warning, fontWeight: "600", marginTop: 2 },
-	tidakAda: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: "italic" },
-	kosong: { fontSize: fontSize.sm, color: colors.textMuted },
-	penugasan: {
+	shiftName: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	shiftTime: { fontSize: fontSize.xs, color: colors.textMuted },
+	overnight: { fontSize: fontSize.xs, color: colors.warning, fontWeight: "600", marginTop: 2 },
+	none: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: "italic" },
+	empty: { fontSize: fontSize.sm, color: colors.textMuted },
+	assignment: {
 		padding: spacing.md,
 		borderRadius: radius.md,
 		borderWidth: 1,

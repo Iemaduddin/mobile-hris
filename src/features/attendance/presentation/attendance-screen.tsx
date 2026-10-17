@@ -4,43 +4,43 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { AppButton, ErrorView, LoadingView, Notice, type NoticeProps } from "@/core/widgets";
-import { ambilPosisi, pesanGagalPosisi, type PosisiPerangkat } from "@/core/location/location-service";
-import { hitungJarakMeter, validasiRadius } from "@/core/location/geo";
-import { lokasiKerjaSaya } from "@/features/auth/models/session";
+import { getPosition, getPositionErrorMessage, type DevicePosition } from "@/core/location/location-service";
+import { measureDistanceMeters, validateRadius } from "@/core/location/geo";
+import { myWorkLocation } from "@/features/auth/models/session";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
 import {
-	formatJam,
-	formatTanggalPanjang,
-	labelStatusRekap,
-	labelTipePresensi,
+	formatTime,
+	formatLongDate,
+	getAttendanceStatusLabel,
+	getPresenceTypeLabel,
 } from "@/core/util/format";
-import { useClock, useStatusHariIni, type HasilAksi } from "../providers/attendance-queries";
-import type { TipePresensi } from "../models/attendance";
+import { useClock, useTodayStatus, type ClockActionResult } from "../providers/attendance-queries";
+import type { AttendanceEventType } from "../models/attendance";
 
-type HasilCek =
-	| { ok: true; posisi: PosisiPerangkat; diLuarRadius: boolean | null; jarakMeter: number | null }
-	| { ok: false; pesan: string };
+type CheckResult =
+	| { ok: true; position: DevicePosition; isOutsideRadius: boolean | null; distanceMeters: number | null }
+	| { ok: false; message: string };
 
 /**
- * Layar Presensi (PRD mobile Bag. 5.3.A-C):
- * status hari ini, tombol clock-in/out dengan GPS, dan daftar event.
+ * Attendance screen (mobile PRD Bag. 5.3.A-C):
+ * today's status, GPS clock-in/out buttons, and the event list.
  */
-export default function PresensiScreen() {
-	const karyawan = useAuthStore((s) => s.karyawan);
-	const lokasi = lokasiKerjaSaya(karyawan);
-	const { data, isLoading, isError, refetch } = useStatusHariIni();
-	const { clock, fase, isSending } = useClock();
+export default function AttendanceScreen() {
+	const employee = useAuthStore((s) => s.employee);
+	const workplace = myWorkLocation(employee);
+	const { data, isLoading, isError, refetch } = useTodayStatus();
+	const { clock, phase, isSending } = useClock();
 
 	const [notice, setNotice] = useState<NoticeProps | null>(null);
-	const [hasilCek, setHasilCek] = useState<HasilCek | null>(null);
-	const [memeriksaLokasi, setMemeriksaLokasi] = useState(false);
+	const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
+	const [checkingLocation, setCheckingLocation] = useState(false);
 
 	const events = useMemo(() => data?.events ?? [], [data]);
-	const sudahMasuk = events.some((event) => event.tipe === "MASUK");
-	const sudahPulang = events.some((event) => event.tipe === "KELUAR");
-	const sedangProses = fase !== "idle" || isSending;
+	const hasCheckedIn = events.some((event) => event.eventType === "MASUK");
+	const hasCheckedOut = events.some((event) => event.eventType === "KELUAR");
+	const isBusy = phase !== "idle" || isSending;
 
-	const konfirmasiGpsPalsu = useCallback(
+	const confirmMockGps = useCallback(
 		() =>
 			new Promise<boolean>((resolve) => {
 				Alert.alert(
@@ -55,82 +55,82 @@ export default function PresensiScreen() {
 		[],
 	);
 
-	const jalankan = useCallback(
-		async (tipe: TipePresensi) => {
+	const runClock = useCallback(
+		async (eventType: AttendanceEventType) => {
 			setNotice(null);
-			const hasil = await clock(tipe, { konfirmasiGpsPalsu });
+			const result = await clock(eventType, { confirmMockGps });
 
-			if (hasil.status === "tercatat") {
-				setNotice(noticeDariHasil(hasil));
-			} else if (hasil.status === "gagal") {
-				setNotice({ tone: "danger", title: "Gagal mencatat presensi", description: hasil.pesan });
+			if (result.status === "recorded") {
+				setNotice(buildResultNotice(result));
+			} else if (result.status === "failed") {
+				setNotice({ tone: "danger", title: "Gagal mencatat presensi", description: result.message });
 			}
 		},
-		[clock, konfirmasiGpsPalsu],
+		[clock, confirmMockGps],
 	);
 
-	const periksaLokasi = useCallback(async () => {
-		setMemeriksaLokasi(true);
+	const checkLocation = useCallback(async () => {
+		setCheckingLocation(true);
 		try {
-			const hasil = await ambilPosisi();
-			if (!hasil.ok) {
-				setHasilCek({ ok: false, pesan: pesanGagalPosisi(hasil.reason) });
+			const result = await getPosition();
+			if (!result.ok) {
+				setCheckResult({ ok: false, message: getPositionErrorMessage(result.reason) });
 				return;
 			}
-			setHasilCek({
+			setCheckResult({
 				ok: true,
-				posisi: hasil.posisi,
-				diLuarRadius: validasiRadius(hasil.posisi, lokasi),
-				jarakMeter:
-					lokasi?.latitude != null && lokasi?.longitude != null
+				position: result.position,
+				isOutsideRadius: validateRadius(result.position, workplace),
+				distanceMeters:
+					workplace?.latitude != null && workplace?.longitude != null
 						? Math.round(
-								hitungJarakMeter(
-									hasil.posisi.latitude,
-									hasil.posisi.longitude,
-									lokasi.latitude,
-									lokasi.longitude,
+								measureDistanceMeters(
+									result.position.latitude,
+									result.position.longitude,
+									workplace.latitude,
+									workplace.longitude,
 								),
 							)
 						: null,
 			});
 		} finally {
-			setMemeriksaLokasi(false);
+			setCheckingLocation(false);
 		}
-	}, [lokasi]);
+	}, [workplace]);
 
 	if (isLoading) return <LoadingView />;
 	if (isError || !data) {
 		return <ErrorView message="Gagal memuat status presensi." onRetry={() => void refetch()} />;
 	}
 
-	const tanpaJadwal = data.status === "TANPA_JADWAL";
+	const noSchedule = data.status === "TANPA_JADWAL";
 
 	return (
 		<SafeAreaView style={styles.safe} edges={["top"]}>
 			<ScrollView contentContainerStyle={styles.content}>
 				<View style={styles.header}>
 					<Text style={styles.title}>Presensi</Text>
-					<Text style={styles.subtitle}>{formatTanggalPanjang(new Date())}</Text>
+					<Text style={styles.subtitle}>{formatLongDate(new Date())}</Text>
 				</View>
 
 				{notice ? <Notice {...notice} /> : null}
 
 				<View style={styles.card}>
 					<Text style={styles.cardLabel}>Status hari ini</Text>
-					<Text style={[styles.status, tanpaJadwal && styles.statusNetral]}>
-						{labelStatusRekap(data.status)}
+					<Text style={[styles.status, noSchedule && styles.statusNeutral]}>
+						{getAttendanceStatusLabel(data.status)}
 					</Text>
-					{data.telatMenit ? <Text style={styles.telat}>Telat {data.telatMenit} menit</Text> : null}
+					{data.lateMinutes ? <Text style={styles.late}>Telat {data.lateMinutes} menit</Text> : null}
 
-					<View style={styles.jamRow}>
-						<View style={styles.jamItem}>
-							<Text style={styles.jamLabel}>Masuk</Text>
-							<Text style={styles.jamValue}>{formatJam(data.masukAktual)}</Text>
+					<View style={styles.timeRow}>
+						<View style={styles.timeItem}>
+							<Text style={styles.timeLabel}>Masuk</Text>
+							<Text style={styles.timeValue}>{formatTime(data.actualCheckIn)}</Text>
 						</View>
 						<View style={styles.divider} />
-						<View style={styles.jamItem}>
-							<Text style={styles.jamLabel}>Pulang</Text>
-							<Text style={styles.jamValue}>{formatJam(data.keluarAktual)}</Text>
+						<View style={styles.timeItem}>
+							<Text style={styles.timeLabel}>Pulang</Text>
+							<Text style={styles.timeValue}>{formatTime(data.actualCheckOut)}</Text>
 						</View>
 					</View>
 				</View>
@@ -139,98 +139,98 @@ export default function PresensiScreen() {
 					<View style={styles.rowBetween}>
 						<View style={{ flex: 1 }}>
 							<Text style={styles.cardLabel}>Lokasi kerja</Text>
-							<Text style={styles.lokasiNama}>{lokasi?.nama ?? "Belum ditentukan"}</Text>
-							<Text style={styles.lokasiMeta}>
-								{lokasi?.radiusMeter
-									? `Radius validasi ${lokasi.radiusMeter} m`
+							<Text style={styles.siteName}>{workplace?.name ?? "Belum ditentukan"}</Text>
+							<Text style={styles.siteMeta}>
+								{workplace?.radiusMeters
+									? `Radius validasi ${workplace.radiusMeters} m`
 									: "Titik & radius belum diatur — hubungi HR"}
 							</Text>
 						</View>
 						<Pressable
-							onPress={() => void periksaLokasi()}
-							disabled={memeriksaLokasi}
-							style={styles.cekBtn}
+							onPress={() => void checkLocation()}
+							disabled={checkingLocation}
+							style={styles.checkButton}
 							accessibilityRole="button"
 						>
-							{memeriksaLokasi ? (
+							{checkingLocation ? (
 								<ActivityIndicator size="small" color={colors.primary} />
 							) : (
-								<Text style={styles.cekLabel}>Cek lokasi</Text>
+								<Text style={styles.checkLabel}>Cek lokasi</Text>
 							)}
 						</Pressable>
 					</View>
 
-					{hasilCek ? (
-						<View style={styles.cekHasil}>
-							{hasilCek.ok ? (
+					{checkResult ? (
+						<View style={styles.checkResult}>
+							{checkResult.ok ? (
 								<>
-									<Text style={styles.cekHasilText}>
-										{hasilCek.jarakMeter == null
+									<Text style={styles.checkResultText}>
+										{checkResult.distanceMeters == null
 											? "Koordinat terbaca."
-											: `Jarak ke lokasi: ${hasilCek.jarakMeter} m`}
+											: `Jarak ke lokasi: ${checkResult.distanceMeters} m`}
 									</Text>
-									<Text style={[styles.cekHasilText, styles[warnaRadius(hasilCek.diLuarRadius)]]}>
-										{labelRadius(hasilCek.diLuarRadius)}
+									<Text style={[styles.checkResultText, styles[getRadiusTone(checkResult.isOutsideRadius)]]}>
+										{getRadiusLabel(checkResult.isOutsideRadius)}
 									</Text>
-									{hasilCek.posisi.isMocked ? (
-										<Text style={[styles.cekHasilText, styles.teksWarning]}>
+									{checkResult.position.isMocked ? (
+										<Text style={[styles.checkResultText, styles.textWarning]}>
 											GPS terdeteksi simulasi (mock).
 										</Text>
 									) : null}
 								</>
 							) : (
-								<Text style={styles.cekHasilText}>{hasilCek.pesan}</Text>
+								<Text style={styles.checkResultText}>{checkResult.message}</Text>
 							)}
 						</View>
 					) : null}
 				</View>
 
-				<View style={styles.tombolRow}>
+				<View style={styles.buttonRow}>
 					<AppButton
 						label="MASUK"
-						onPress={() => void jalankan("MASUK")}
-						loading={sedangProses}
-						disabled={sedangProses || sudahMasuk}
-						style={styles.tombol}
+						onPress={() => void runClock("MASUK")}
+						loading={isBusy}
+						disabled={isBusy || hasCheckedIn}
+						style={styles.button}
 					/>
 					<AppButton
 						label="KELUAR"
 						variant="outline"
-						onPress={() => void jalankan("KELUAR")}
-						loading={sedangProses}
-						disabled={sedangProses || !sudahMasuk || sudahPulang}
-						style={styles.tombol}
+						onPress={() => void runClock("KELUAR")}
+						loading={isBusy}
+						disabled={isBusy || !hasCheckedIn || hasCheckedOut}
+						style={styles.button}
 					/>
 				</View>
 
-				{fase === "mengambil_lokasi" ? (
-					<Text style={styles.prosesText}>Mengambil lokasi perangkat…</Text>
+				{phase === "fetching_location" ? (
+					<Text style={styles.progressText}>Mengambil lokasi perangkat…</Text>
 				) : null}
-				{fase === "mengirim" ? <Text style={styles.prosesText}>Mengirim presensi…</Text> : null}
+				{phase === "sending" ? <Text style={styles.progressText}>Mengirim presensi…</Text> : null}
 
 				<View style={styles.card}>
 					<View style={styles.rowBetween}>
 						<Text style={styles.cardLabel}>Event hari ini</Text>
 						<Link href="/attendance/riwayat" asChild>
 							<Pressable accessibilityRole="button" hitSlop={8}>
-								<Text style={styles.cekLabel}>Riwayat</Text>
+								<Text style={styles.checkLabel}>Riwayat</Text>
 							</Pressable>
 						</Link>
 					</View>
 
 					{events.length === 0 ? (
-						<Text style={styles.kosong}>Belum ada event presensi hari ini.</Text>
+						<Text style={styles.empty}>Belum ada event presensi hari ini.</Text>
 					) : (
 						events.map((event) => (
-							<View key={`${event.tipe}-${event.waktu}`} style={styles.eventRow}>
+							<View key={`${event.eventType}-${event.time}`} style={styles.eventRow}>
 								<View style={{ flex: 1 }}>
-									<Text style={styles.eventTipe}>{labelTipePresensi(event.tipe)}</Text>
+									<Text style={styles.eventType}>{getPresenceTypeLabel(event.eventType)}</Text>
 									<Text style={styles.eventMeta}>
-										{formatJam(event.waktu)} · {event.sumber}
+										{formatTime(event.time)} · {event.source}
 									</Text>
 								</View>
 								<View style={styles.eventFlags}>
-									{event.diLuarRadius ? (
+									{event.isOutsideRadius ? (
 										<Text style={[styles.flag, styles.flagDanger]}>Luar radius</Text>
 									) : null}
 									{event.isMocked ? <Text style={[styles.flag, styles.flagWarning]}>Mock</Text> : null}
@@ -244,47 +244,47 @@ export default function PresensiScreen() {
 	);
 }
 
-function labelRadius(diLuarRadius: boolean | null): string {
-	if (diLuarRadius === null)
+function getRadiusLabel(isOutsideRadius: boolean | null): string {
+	if (isOutsideRadius === null)
 		return "Kantor ini belum diatur titik & radiusnya — hubungi HR agar validasi lokasi aktif.";
-	return diLuarRadius ? "Di luar radius validasi." : "Di dalam radius validasi.";
+	return isOutsideRadius ? "Di luar radius validasi." : "Di dalam radius validasi.";
 }
 
-function warnaRadius(diLuarRadius: boolean | null): "teksDanger" | "teksSuccess" | "teksMuted" {
-	if (diLuarRadius === null) return "teksMuted";
-	return diLuarRadius ? "teksDanger" : "teksSuccess";
+function getRadiusTone(isOutsideRadius: boolean | null): "textDanger" | "textSuccess" | "textMuted" {
+	if (isOutsideRadius === null) return "textMuted";
+	return isOutsideRadius ? "textDanger" : "textSuccess";
 }
 
-/** Susun banner hasil clock-in sesuai PRD mobile Bag. 5.3.A but.4. */
-function noticeDariHasil(hasil: Extract<HasilAksi, { status: "tercatat" }>): NoticeProps {
-	const { data, peringatanLokasi } = hasil;
-	const bagian: string[] = [];
+/** Build the clock-in result banner per mobile PRD Bag. 5.3.A item 4. */
+function buildResultNotice(result: Extract<ClockActionResult, { status: "recorded" }>): NoticeProps {
+	const { data, locationWarning } = result;
+	const parts: string[] = [];
 
-	if (data.diLuarRadius === true) {
-		bagian.push(
-			data.jarakMeter != null
-				? `Di luar radius — jarak ${data.jarakMeter} m dari lokasi kerja.`
+	if (data.isOutsideRadius === true) {
+		parts.push(
+			data.distanceMeters != null
+				? `Di luar radius — jarak ${data.distanceMeters} m dari lokasi kerja.`
 				: "Di luar radius lokasi kerja.",
 		);
-	} else if (data.diLuarRadius === false) {
-		bagian.push("Di dalam radius lokasi kerja.");
-	} else if (peringatanLokasi) {
-		// GPS gagal — peringatan rinci sudah ada di bawah, tak perlu ganda.
+	} else if (data.isOutsideRadius === false) {
+		parts.push("Di dalam radius lokasi kerja.");
+	} else if (locationWarning) {
+		// GPS failed — the detailed warning already shows below, no need to double it.
 	} else {
-		bagian.push("Titik & radius kantor belum diatur HR — presensi tetap sah.");
+		parts.push("Titik & radius kantor belum diatur HR — presensi tetap sah.");
 	}
 
 	if (data.isMocked) {
-		bagian.push("Lokasi terdeteksi simulasi (mock) dan disimpan dengan flag.");
+		parts.push("Lokasi terdeteksi simulasi (mock) dan disimpan dengan flag.");
 	}
-	if (peringatanLokasi) bagian.push(peringatanLokasi);
+	if (locationWarning) parts.push(locationWarning);
 
-	const bermasalah = data.diLuarRadius === true || data.isMocked;
+	const hasIssue = data.isOutsideRadius === true || data.isMocked;
 
 	return {
-		tone: bermasalah ? "warning" : "success",
-		title: `${labelTipePresensi(data.tipe)} tercatat · ${formatJam(data.waktu)}`,
-		description: bagian.join(" "),
+		tone: hasIssue ? "warning" : "success",
+		title: `${getPresenceTypeLabel(data.eventType)} tercatat · ${formatTime(data.time)}`,
+		description: parts.join(" "),
 	};
 }
 
@@ -305,18 +305,18 @@ const styles = StyleSheet.create({
 	},
 	cardLabel: { fontSize: fontSize.xs, fontWeight: "700", color: colors.textMuted, textTransform: "uppercase" },
 	status: { fontSize: fontSize.xl, fontWeight: "700", color: colors.success },
-	statusNetral: { color: colors.textMuted },
-	telat: { fontSize: fontSize.sm, color: colors.warning, fontWeight: "600" },
-	jamRow: { flexDirection: "row", marginTop: spacing.sm },
-	jamItem: { flex: 1, gap: spacing.xs },
-	jamLabel: { fontSize: fontSize.xs, color: colors.textMuted },
-	jamValue: { fontSize: fontSize.lg, fontWeight: "600", color: colors.text },
+	statusNeutral: { color: colors.textMuted },
+	late: { fontSize: fontSize.sm, color: colors.warning, fontWeight: "600" },
+	timeRow: { flexDirection: "row", marginTop: spacing.sm },
+	timeItem: { flex: 1, gap: spacing.xs },
+	timeLabel: { fontSize: fontSize.xs, color: colors.textMuted },
+	timeValue: { fontSize: fontSize.lg, fontWeight: "600", color: colors.text },
 	divider: { width: 1, backgroundColor: colors.border, marginHorizontal: spacing.md },
 
 	rowBetween: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-	lokasiNama: { fontSize: fontSize.md, fontWeight: "600", color: colors.text, marginTop: spacing.xs },
-	lokasiMeta: { fontSize: fontSize.xs, color: colors.textMuted },
-	cekBtn: {
+	siteName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text, marginTop: spacing.xs },
+	siteMeta: { fontSize: fontSize.xs, color: colors.textMuted },
+	checkButton: {
 		minHeight: TOUCH_MIN,
 		justifyContent: "center",
 		paddingHorizontal: spacing.md,
@@ -324,25 +324,25 @@ const styles = StyleSheet.create({
 		borderWidth: 1.5,
 		borderColor: colors.primary,
 	},
-	cekLabel: { color: colors.primary, fontWeight: "700", fontSize: fontSize.sm },
-	cekHasil: {
+	checkLabel: { color: colors.primary, fontWeight: "700", fontSize: fontSize.sm },
+	checkResult: {
 		marginTop: spacing.sm,
 		padding: spacing.md,
 		borderRadius: radius.md,
 		backgroundColor: colors.backgroundAlt,
 		gap: spacing.xs,
 	},
-	cekHasilText: { fontSize: fontSize.sm, color: colors.text },
-	teksDanger: { color: colors.danger, fontWeight: "600" },
-	teksSuccess: { color: colors.success, fontWeight: "600" },
-	teksWarning: { color: colors.warning, fontWeight: "600" },
-	teksMuted: { color: colors.textMuted },
+	checkResultText: { fontSize: fontSize.sm, color: colors.text },
+	textDanger: { color: colors.danger, fontWeight: "600" },
+	textSuccess: { color: colors.success, fontWeight: "600" },
+	textWarning: { color: colors.warning, fontWeight: "600" },
+	textMuted: { color: colors.textMuted },
 
-	tombolRow: { flexDirection: "row", gap: spacing.md },
-	tombol: { flex: 1 },
-	prosesText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: "center" },
+	buttonRow: { flexDirection: "row", gap: spacing.md },
+	button: { flex: 1 },
+	progressText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: "center" },
 
-	kosong: { fontSize: fontSize.sm, color: colors.textMuted },
+	empty: { fontSize: fontSize.sm, color: colors.textMuted },
 	eventRow: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: colors.border,
 	},
-	eventTipe: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
+	eventType: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
 	eventMeta: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
 	eventFlags: { flexDirection: "row", gap: spacing.xs },
 	flag: {
@@ -365,4 +365,3 @@ const styles = StyleSheet.create({
 	flagDanger: { backgroundColor: colors.dangerLight, color: colors.danger },
 	flagWarning: { backgroundColor: colors.warningLight, color: colors.warning },
 });
-

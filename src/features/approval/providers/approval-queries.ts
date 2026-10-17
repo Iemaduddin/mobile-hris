@@ -1,36 +1,36 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getInboxApproval, putusanApproval } from "../data/approval-api";
+import { decideApproval, getApprovalInbox } from "../data/approval-api";
 
 export const approvalKeys = {
 	all: ["approval"] as const,
 	inbox: () => [...approvalKeys.all, "inbox"] as const,
 };
 
-/** Antrean persetujuan untuk user login (atasan/HR) — P4-4. */
-export function useInboxApproval() {
+/** Approval queue for the logged-in user (lead/HR) — P4-4. */
+export function useApprovalInbox() {
 	return useQuery({
 		queryKey: approvalKeys.inbox(),
-		queryFn: ({ signal }) => getInboxApproval(signal),
+		queryFn: ({ signal }) => getApprovalInbox(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Setuju/tolak + catatan dari HP. */
-export function usePutusanApproval() {
+/** Approve/reject + note from the phone. */
+export function useApprovalDecision() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({
 			type,
 			id,
-			keputusan,
-			catatan,
+			decision,
+			note,
 		}: {
 			type: string;
 			id: string;
-			keputusan: "SETUJU" | "TOLAK";
-			catatan?: string;
-		}) => putusanApproval(type, id, keputusan, catatan),
+			decision: "SETUJU" | "TOLAK";
+			note?: string;
+		}) => decideApproval(type, id, decision, note),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: approvalKeys.inbox() });
 		},

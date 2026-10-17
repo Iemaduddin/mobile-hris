@@ -25,7 +25,7 @@ export function LoginScreen() {
 	const signIn = useAuthStore((s) => s.signIn);
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [tampilPassword, setTampilPassword] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -86,7 +86,7 @@ export function LoginScreen() {
 									style={styles.passwordInput}
 									value={password}
 									onChangeText={setPassword}
-									secureTextEntry={!tampilPassword}
+									secureTextEntry={!showPassword}
 									placeholder="••••••••"
 									autoCapitalize="none"
 									autoCorrect={false}
@@ -94,13 +94,13 @@ export function LoginScreen() {
 									onSubmitEditing={() => void handleSubmit()}
 								/>
 								<Pressable
-									onPress={() => setTampilPassword((v) => !v)}
+									onPress={() => setShowPassword((v) => !v)}
 									accessibilityRole="button"
-									accessibilityLabel={tampilPassword ? "Sembunyikan password" : "Tampilkan password"}
+									accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
 									style={styles.eye}
 								>
 									<Ionicons
-										name={tampilPassword ? "eye-off-outline" : "eye-outline"}
+										name={showPassword ? "eye-off-outline" : "eye-outline"}
 										size={22}
 										color={colors.textMuted}
 									/>

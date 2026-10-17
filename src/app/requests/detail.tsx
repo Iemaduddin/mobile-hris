@@ -1,15 +1,15 @@
 import { useLocalSearchParams } from "expo-router";
 import { RequestDetailScreen } from "@/features/requests/presentation/request-detail-screen";
-import type { JenisPengajuan } from "@/features/requests/models/request";
+import type { RequestKind } from "@/features/requests/models/request";
 
-function jenisDariParam(value?: string): JenisPengajuan {
-	if (value === "lembur" || value === "dinas") return value;
-	return "cuti";
+function kindFromParam(value?: string): RequestKind {
+	if (value === "overtime" || value === "duty") return value;
+	return "leave";
 }
 
-/** Detail pengajuan + aksi ajukan/batal — dibuka dari tab Pengajuan. */
-export default function PengajuanDetailRoute() {
-	const { id, jenis } = useLocalSearchParams<{ id?: string; jenis?: string }>();
+/** Request detail + submit/cancel actions — opened from the Requests tab. */
+export default function RequestDetailRoute() {
+	const { id, kind } = useLocalSearchParams<{ id?: string; kind?: string }>();
 	if (!id) return null;
-	return <RequestDetailScreen id={id} jenis={jenisDariParam(jenis)} />;
+	return <RequestDetailScreen id={id} kind={kindFromParam(kind)} />;
 }

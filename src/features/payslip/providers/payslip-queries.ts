@@ -1,27 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
-import { getSlipDetail, getSlipSaya } from "../data/payslip-api";
+import { getMyPayslips, getPayslipDetail } from "../data/payslip-api";
 
 export const payslipKeys = {
-	all: ["payslip"] as const,
+	all: ["payslips"] as const,
 	list: () => [...payslipKeys.all, "list"] as const,
-	detail: (nomor: string) => [...payslipKeys.all, "detail", nomor] as const,
+	detail: (number: string) => [...payslipKeys.all, "detail", number] as const,
 };
 
-/** Daftar slip yang sudah DITERBITKAN (PRD Bag. 5.5). */
-export function useSlipList() {
+/** Published payslip list (PRD Bag. 5.5). */
+export function usePayslipList() {
 	return useQuery({
 		queryKey: payslipKeys.list(),
-		queryFn: ({ signal }) => getSlipSaya(signal),
+		queryFn: ({ signal }) => getMyPayslips(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Rincian satu slip: pendapatan, potongan, iuran (perusahaan vs karyawan). */
-export function useSlipDetail(nomor: string) {
+/** One payslip's detail: earnings, deductions, contributions (company vs employee). */
+export function usePayslipDetail(number: string) {
 	return useQuery({
-		queryKey: payslipKeys.detail(nomor),
-		queryFn: ({ signal }) => getSlipDetail(nomor, signal),
+		queryKey: payslipKeys.detail(number),
+		queryFn: ({ signal }) => getPayslipDetail(number, signal),
 		select: (data) => data.slip,
-		enabled: nomor.length > 0,
+		enabled: number.length > 0,
 	});
 }

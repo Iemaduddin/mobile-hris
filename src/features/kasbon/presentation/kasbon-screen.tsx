@@ -5,106 +5,106 @@ import { AppButton } from "@/core/widgets/app-button";
 import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
 import { DateField } from "@/features/requests/presentation/form-fields";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
 import { ApiException } from "@/core/network/api-exception";
-import { formatTanggal } from "@/core/util/format";
-import { estimasiAngsuran, formatRupiahKasbon, type KasbonSaya } from "../data/kasbon-api";
-import { labelStatusKasbon, toneStatusKasbon } from "../models/kasbon";
-import { useAksiKasbon, useBuatKasbon, useKasbonSaya } from "../providers/kasbon-queries";
+import { formatDate, formatIDR } from "@/core/util/format";
+import { estimateInstallment, type MySalaryAdvance } from "../data/kasbon-api";
+import { getSalaryAdvanceStatusLabel, getSalaryAdvanceStatusTone } from "../models/kasbon";
+import { useCreateSalaryAdvance, useMySalaryAdvances, useSalaryAdvanceAction } from "../providers/kasbon-queries";
 
-const TENOR_PILIHAN = [3, 6, 10, 12, 24];
+const TENOR_OPTIONS = [3, 6, 10, 12, 24];
 
-function progres(angsuranKe: number, tenorBulan: number): number {
-	if (!tenorBulan || tenorBulan <= 0) return 0;
-	return Math.min(1, Math.max(0, angsuranKe / tenorBulan));
+function progress(installmentNo: number, tenorMonths: number): number {
+	if (!tenorMonths || tenorMonths <= 0) return 0;
+	return Math.min(1, Math.max(0, installmentNo / tenorMonths));
 }
 
 /**
- * Kasbon Saya — M-ESS-2. Simulasi angsuran sebelum kirim;
- * pelunasan otomatis dipotong gaji tiap salary run.
+ * My Salary Advances — M-ESS-2. Installment preview before sending;
+ * repayment is auto-deducted from each salary run.
  */
 export function KasbonScreen() {
-	const karyawan = useAuthStore((s) => s.karyawan);
-	const daftar = useKasbonSaya();
-	const buat = useBuatKasbon();
-	const aksi = useAksiKasbon();
+	const employee = useAuthStore((s) => s.employee);
+	const list = useMySalaryAdvances();
+	const create = useCreateSalaryAdvance();
+	const action = useSalaryAdvanceAction();
 
-	const [nominal, setNominal] = useState("");
+	const [amount, setAmount] = useState("");
 	const [tenor, setTenor] = useState(10);
-	const [tenorLain, setTenorLain] = useState("");
-	const [mulai, setMulai] = useState("");
-	const [alasan, setAlasan] = useState("");
-	const [galat, setGalat] = useState<string | null>(null);
+	const [customTenor, setCustomTenor] = useState("");
+	const [deductionStart, setDeductionStart] = useState("");
+	const [reason, setReason] = useState("");
+	const [error, setError] = useState<string | null>(null);
 
-	const sibuk = buat.isPending || aksi.isPending;
-	const angkaNominal = Number(String(nominal).replace(/[^0-9]/g, ""));
-	const tenorPakai = tenorLain.trim() ? Number(tenorLain) : tenor;
-	const angsuran = estimasiAngsuran(angkaNominal, tenorPakai);
+	const busy = create.isPending || action.isPending;
+	const amountValue = Number(String(amount).replace(/[^0-9]/g, ""));
+	const activeTenor = customTenor.trim() ? Number(customTenor) : tenor;
+	const installment = estimateInstallment(amountValue, activeTenor);
 
-	function pesanGalat(error: unknown): string {
+	function getErrorMessage(error: unknown): string {
 		return error instanceof ApiException ? error.message : "Operasi gagal. Coba lagi.";
 	}
 
-	function kirim() {
-		if (!karyawan) {
-			setGalat("Akun belum tertaut ke data karyawan.");
+	function submit() {
+		if (!employee) {
+			setError("Akun belum tertaut ke data karyawan.");
 			return;
 		}
-		if (!Number.isFinite(angkaNominal) || angkaNominal <= 0) {
-			setGalat("Nominal harus lebih dari 0.");
+		if (!Number.isFinite(amountValue) || amountValue <= 0) {
+			setError("Nominal harus lebih dari 0.");
 			return;
 		}
-		if (!Number.isFinite(tenorPakai) || tenorPakai < 1) {
-			setGalat("Tenor minimal 1 bulan.");
+		if (!Number.isFinite(activeTenor) || activeTenor < 1) {
+			setError("Tenor minimal 1 bulan.");
 			return;
 		}
-		if (!alasan.trim()) {
-			setGalat("Alasan wajib diisi.");
+		if (!reason.trim()) {
+			setError("Alasan wajib diisi.");
 			return;
 		}
-		setGalat(null);
-		buat.mutate(
-			{ nominal: angkaNominal, tenorBulan: Math.floor(tenorPakai), mulaiPotong: mulai, alasan: alasan.trim() },
+		setError(null);
+		create.mutate(
+			{ amount: amountValue, tenorMonths: Math.floor(activeTenor), deductionStart, reason: reason.trim() },
 			{
-				onSuccess: async (draf) => {
+				onSuccess: async (draft) => {
 					try {
-						await aksi.mutateAsync({ id: draf.id, aksi: "ajukan" });
+						await action.mutateAsync({ id: draft.id, action: "submit" });
 						Alert.alert("Terkirim", "Pengajuan kasbon diteruskan ke Finance.");
-					} catch (error) {
-						Alert.alert("Draf tersimpan", `Gagal mengajukan otomatis: ${pesanGalat(error)}`);
+					} catch (err) {
+						Alert.alert("Draf tersimpan", `Gagal mengajukan otomatis: ${getErrorMessage(err)}`);
 					}
-					setNominal("");
-					setTenorLain("");
-					setMulai("");
-					setAlasan("");
+					setAmount("");
+					setCustomTenor("");
+					setDeductionStart("");
+					setReason("");
 				},
-				onError: (error) => setGalat(pesanGalat(error)),
+				onError: (err) => setError(getErrorMessage(err)),
 			},
 		);
 	}
 
-	if (daftar.isPending)
+	if (list.isPending)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Kasbon Saya" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
-	if (daftar.isError && daftar.data === undefined)
+	if (list.isError && list.data === undefined)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Kasbon Saya" />
-				<ErrorView message="Gagal memuat kasbon." onRetry={() => void daftar.refetch()} />
+				<ErrorView message="Gagal memuat kasbon." onRetry={() => void list.refetch()} />
 			</View>
 		);
 
-	const items = daftar.data ?? [];
+	const items = list.data ?? [];
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader title="Kasbon Saya" subtitle={items.length > 0 ? `${items.length} pengajuan` : undefined} />
 			<FlatList
 				data={items}
@@ -112,38 +112,38 @@ export function KasbonScreen() {
 				contentContainerStyle={styles.content}
 				refreshControl={
 					<RefreshControl
-						refreshing={daftar.isRefetching}
-						onRefresh={() => void daftar.refetch()}
+						refreshing={list.isRefetching}
+						onRefresh={() => void list.refetch()}
 						tintColor={colors.primary}
 					/>
 				}
 				ListHeaderComponent={
 					<View style={styles.form}>
-						<Text style={styles.formJudul}>Pengajuan Baru</Text>
-						<Text style={styles.formSub}>Dicicil otomatis potong gaji tiap run.</Text>
+						<Text style={styles.formTitle}>Pengajuan Baru</Text>
+						<Text style={styles.formSubtitle}>Dicicil otomatis potong gaji tiap run.</Text>
 
 						<AppTextField
 							label="Nominal (Rp)"
-							value={nominal}
-							onChangeText={setNominal}
+							value={amount}
+							onChangeText={setAmount}
 							keyboardType="numeric"
 							placeholder="cth. 10000000"
 						/>
 
-						<Text style={styles.label}>Tenor (bulan)</Text>
+						<Text style={styles.fieldLabel}>Tenor (bulan)</Text>
 						<View style={styles.chips}>
-							{TENOR_PILIHAN.map((t) => (
+							{TENOR_OPTIONS.map((t) => (
 								<Pressable
 									key={t}
 									onPress={() => {
 										setTenor(t);
-										setTenorLain("");
+										setCustomTenor("");
 									}}
 									accessibilityRole="button"
-									accessibilityState={{ selected: !tenorLain && tenor === t }}
-									style={[styles.chip, !tenorLain && tenor === t && styles.chipAktif]}
+									accessibilityState={{ selected: !customTenor && tenor === t }}
+									style={[styles.chip, !customTenor && tenor === t && styles.chipActive]}
 								>
-									<Text style={[styles.chipText, !tenorLain && tenor === t && styles.chipTextAktif]}>
+									<Text style={[styles.chipText, !customTenor && tenor === t && styles.chipTextActive]}>
 										{t}x
 									</Text>
 								</Pressable>
@@ -151,43 +151,43 @@ export function KasbonScreen() {
 						</View>
 						<AppTextField
 							label="Tenor lain (opsional)"
-							value={tenorLain}
-							onChangeText={setTenorLain}
+							value={customTenor}
+							onChangeText={setCustomTenor}
 							keyboardType="numeric"
 							placeholder="cth. 8"
 						/>
 
-						<DateField label="Mulai potong" value={mulai} onChange={setMulai} />
+						<DateField label="Mulai potong" value={deductionStart} onChange={setDeductionStart} />
 
 						<AppTextField
 							label="Alasan"
-							value={alasan}
-							onChangeText={setAlasan}
+							value={reason}
+							onChangeText={setReason}
 							placeholder="cth. Biaya sekolah anak"
 						/>
 
-						{anggsuranBox(angkaNominal, tenorPakai, angsuran)}
+						{installmentPreview(amountValue, activeTenor, installment)}
 
-						{galat ? <Text style={styles.galat}>{galat}</Text> : null}
+						{error ? <Text style={styles.error}>{error}</Text> : null}
 
-						<AppButton label="Kirim Pengajuan" onPress={kirim} loading={sibuk} />
+						<AppButton label="Kirim Pengajuan" onPress={submit} loading={busy} />
 					</View>
 				}
 				ListEmptyComponent={<EmptyView message="Belum ada pengajuan kasbon." />}
 				renderItem={({ item }) => (
-					<KartuKasbon
+					<SalaryAdvanceCard
 						data={item}
-						sibuk={sibuk}
-						onAjukan={() =>
-							aksi.mutate(
-								{ id: item.id, aksi: "ajukan" },
-								{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+						busy={busy}
+						onSubmit={() =>
+							action.mutate(
+								{ id: item.id, action: "submit" },
+								{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 							)
 						}
-						onBatal={() =>
-							aksi.mutate(
-								{ id: item.id, aksi: "batal" },
-								{ onError: (e) => Alert.alert("Gagal", pesanGalat(e)) },
+						onCancel={() =>
+							action.mutate(
+								{ id: item.id, action: "cancel" },
+								{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
 							)
 						}
 					/>
@@ -198,63 +198,63 @@ export function KasbonScreen() {
 	);
 }
 
-function anggsuranBox(nominal: number, tenor: number, angsuran: number) {
-	if (!Number.isFinite(nominal) || nominal <= 0 || angsuran <= 0) return null;
+function installmentPreview(amount: number, tenor: number, installment: number) {
+	if (!Number.isFinite(amount) || amount <= 0 || installment <= 0) return null;
 	return (
-		<View style={styles.simulasi}>
-			<Text style={styles.simulasiLabel}>Estimasi cicilan</Text>
-			<Text style={styles.simulasiNilai}>
-				{formatRupiahKasbon(angsuran)} × {Math.floor(tenor)} bln
+		<View style={styles.preview}>
+			<Text style={styles.previewLabel}>Estimasi cicilan</Text>
+			<Text style={styles.previewValue}>
+				{formatIDR(installment)} × {Math.floor(tenor)} bln
 			</Text>
 		</View>
 	);
 }
 
-function KartuKasbon({
+function SalaryAdvanceCard({
 	data,
-	sibuk,
-	onAjukan,
-	onBatal,
+	busy,
+	onSubmit,
+	onCancel,
 }: {
-	data: KasbonSaya;
-	sibuk: boolean;
-	onAjukan: () => void;
-	onBatal: () => void;
+	data: MySalaryAdvance;
+	busy: boolean;
+	onSubmit: () => void;
+	onCancel: () => void;
 }) {
-	const p = progres(data.angsuranKe, data.tenorBulan);
+	const p = progress(data.installmentNo, data.tenorMonths);
 	return (
 		<View style={styles.card}>
 			<View style={styles.cardHead}>
-				<Text style={styles.nomor} numberOfLines={1}>
-					{data.nomor}
+				<Text style={styles.number} numberOfLines={1}>
+					{data.number}
 				</Text>
-				<StatusChip label={labelStatusKasbon(data.status)} tone={toneStatusKasbon(data.status)} />
+				<StatusChip label={getSalaryAdvanceStatusLabel(data.status)} tone={getSalaryAdvanceStatusTone(data.status)} />
 			</View>
-			<Text style={styles.nominalBesar}>{formatRupiahKasbon(data.nominal)}</Text>
+			<Text style={styles.amountLarge}>{formatIDR(data.amount)}</Text>
 			<Text style={styles.meta}>
-				{formatRupiahKasbon(data.angsuranPerBulan)}/bln · {data.angsuranKe}/{data.tenorBulan} cicilan · mulai{" "}
-				{formatTanggal(data.mulaiPotong)}
+				{formatIDR(data.monthlyInstallment)}/bln · {data.installmentNo}/{data.tenorMonths} cicilan · mulai{" "}
+				{formatDate(data.deductionStart)}
 			</Text>
-			<Text style={styles.meta}>Sisa: {formatRupiahKasbon(data.sisaHutang)}</Text>
-			<View style={styles.bar}>
-				<View style={[styles.isi, { flex: p }]} />
+			<Text style={styles.meta}>Sisa: {formatIDR(data.remainingDebt)}</Text>
+			<View style={styles.progressBar}>
+				<View style={[styles.fill, { flex: p }]} />
 				<View style={{ flex: 1 - p }} />
 			</View>
-			{data.catatan ? <Text style={styles.catatan}>“{data.catatan}”</Text> : null}
+			{data.note ? <Text style={styles.note}>“{data.note}”</Text> : null}
 			{data.status === "DRAFT" ? (
-				<View style={styles.aksiRow}>
-					<View style={styles.aksiBtn}>
-						<AppButton label="Ajukan" onPress={onAjukan} loading={sibuk} />
+				<View style={styles.actionRow}>
+					<View style={styles.actionButton}>
+						<AppButton label="Ajukan" onPress={onSubmit} loading={busy} />
 					</View>
-					<View style={styles.aksiBtn}>
-						<AppButton label="Batal" variant="outline" onPress={onBatal} loading={sibuk} />
+					<View style={styles.actionButton}>
+						<AppButton label="Batal" variant="outline" onPress={onCancel} loading={busy} />
 					</View>
 				</View>
 			) : null}
 			{data.status === "DIAJUKAN" ? (
-				<View style={styles.aksiRow}>
-					<View style={styles.aksiBtn}>
-						<AppButton label="Batalkan" variant="outline" onPress={onBatal} loading={sibuk} />
+				<View style={styles.actionRow}>
+					<View style={styles.actionButton}>
+						<AppButton label="Batalkan" variant="outline" onPress={onCancel} loading={busy} />
 					</View>
 				</View>
 			) : null}
@@ -263,7 +263,7 @@ function KartuKasbon({
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
 	form: {
 		backgroundColor: colors.surface,
@@ -274,9 +274,9 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 		marginBottom: spacing.sm,
 	},
-	formJudul: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-	formSub: { fontSize: fontSize.xs, color: colors.textMuted },
-	label: { fontSize: fontSize.sm, color: colors.textMuted },
+	formTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
+	formSubtitle: { fontSize: fontSize.xs, color: colors.textMuted },
+	fieldLabel: { fontSize: fontSize.sm, color: colors.textMuted },
 	chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
 	chip: {
 		minHeight: 38,
@@ -289,10 +289,10 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		backgroundColor: colors.surface,
 	},
-	chipAktif: { backgroundColor: colors.primary, borderColor: colors.primary },
+	chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
 	chipText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: "600" },
-	chipTextAktif: { color: colors.textInverse },
-	simulasi: {
+	chipTextActive: { color: colors.textInverse },
+	preview: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "space-between",
@@ -300,9 +300,9 @@ const styles = StyleSheet.create({
 		borderRadius: radius.md,
 		padding: spacing.md,
 	},
-	simulasiLabel: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "700" },
-	simulasiNilai: { fontSize: fontSize.sm, fontWeight: "800", color: colors.primaryDark },
-	galat: { fontSize: fontSize.xs, color: colors.danger },
+	previewLabel: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "700" },
+	previewValue: { fontSize: fontSize.sm, fontWeight: "800", color: colors.primaryDark },
+	error: { fontSize: fontSize.xs, color: colors.danger },
 	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -312,13 +312,13 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 	},
 	cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	nomor: { flex: 1, fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
-	nominalBesar: { fontSize: fontSize.lg, fontWeight: "800", color: colors.text },
+	number: { flex: 1, fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	amountLarge: { fontSize: fontSize.lg, fontWeight: "800", color: colors.text },
 	meta: { fontSize: fontSize.xs, color: colors.textMuted },
-	bar: { flexDirection: "row", height: 8, borderRadius: 4, backgroundColor: colors.backgroundAlt, overflow: "hidden" },
-	isi: { backgroundColor: colors.success },
-	catatan: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic" },
-	aksiRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-	aksiBtn: { flex: 1 },
+	progressBar: { flexDirection: "row", height: 8, borderRadius: 4, backgroundColor: colors.backgroundAlt, overflow: "hidden" },
+	fill: { backgroundColor: colors.success },
+	note: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: "italic" },
+	actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+	actionButton: { flex: 1 },
 	gap: { height: spacing.sm },
 });

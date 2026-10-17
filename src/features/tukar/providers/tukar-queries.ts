@@ -1,63 +1,63 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	buatTukar,
-	getPasanganTukar,
-	getTukarSaya,
-	ubahStatusTukar,
-	type InputTukar,
+	createSwap,
+	getMySwaps,
+	getSwapPartners,
+	updateSwapStatus,
+	type SwapInput,
 } from "../data/tukar-api";
 
-export const tukarKeys = {
-	all: ["tukar"] as const,
-	daftar: () => [...tukarKeys.all, "daftar"] as const,
-	pasangan: () => [...tukarKeys.all, "pasangan"] as const,
+export const swapKeys = {
+	all: ["swaps"] as const,
+	list: () => [...swapKeys.all, "list"] as const,
+	partners: () => [...swapKeys.all, "partners"] as const,
 };
 
-/** Usulan keluar + masuk untuk saya. */
-export function useTukarSaya() {
+/** Outgoing + incoming swaps for me. */
+export function useMySwaps() {
 	return useQuery({
-		queryKey: tukarKeys.daftar(),
-		queryFn: ({ signal }) => getTukarSaya(signal),
+		queryKey: swapKeys.list(),
+		queryFn: ({ signal }) => getMySwaps(signal),
 	});
 }
 
-/** Opsi pasangan (semua karyawan aktif kecuali diri sendiri). */
-export function usePasanganTukar() {
+/** Partner options (all active employees except me). */
+export function useSwapPartners() {
 	return useQuery({
-		queryKey: tukarKeys.pasangan(),
-		queryFn: ({ signal }) => getPasanganTukar(signal),
+		queryKey: swapKeys.partners(),
+		queryFn: ({ signal }) => getSwapPartners(signal),
 		select: (data) => data.items,
 	});
 }
 
-/** Buat draf tukar. */
-export function useBuatTukar() {
+/** Create a swap draft. */
+export function useCreateSwap() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (input: InputTukar) => buatTukar(input),
+		mutationFn: (input: SwapInput) => createSwap(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: tukarKeys.all });
+			void queryClient.invalidateQueries({ queryKey: swapKeys.all });
 		},
 	});
 }
 
-/** Ajukan / batal / setuju / tolak. */
-export function useAksiTukar() {
+/** Submit / cancel / approve / reject. */
+export function useSwapAction() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({
 			id,
-			aksi,
-			catatan,
+			action,
+			note,
 		}: {
 			id: string;
-			aksi: "ajukan" | "batal" | "setuju" | "tolak";
-			catatan?: string;
-		}) => ubahStatusTukar(id, aksi, catatan),
+			action: "submit" | "cancel" | "approve" | "reject";
+			note?: string;
+		}) => updateSwapStatus(id, action, note),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: tukarKeys.all });
+			void queryClient.invalidateQueries({ queryKey: swapKeys.all });
 		},
 	});
 }

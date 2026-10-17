@@ -4,18 +4,18 @@ import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { appConfig } from "@/core/config/app-config";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { ErrorView, LoadingView } from "@/core/widgets/states";
-import { useNotifikasi, useSimpanPreferensi } from "@/features/notifikasi/providers/notifikasi-queries";
+import { useNotifications, useSavePreferences } from "@/features/notifikasi/providers/notifikasi-queries";
 import { ApiException } from "@/core/network/api-exception";
 
-/** Pengaturan — preferensi notifikasi, info aplikasi, bantuan. */
+/** Settings — notification preferences, app info, help. */
 export function PengaturanScreen() {
-	const notifikasi = useNotifikasi();
-	const simpan = useSimpanPreferensi();
+	const notifications = useNotifications();
+	const save = useSavePreferences();
 
-	function alihKanal(kunci: "pushAktif" | "emailAktif", nilai: boolean) {
-		const saatIni = notifikasi.data?.preferensi ?? { pushAktif: true, emailAktif: true };
-		simpan.mutate(
-			{ ...saatIni, [kunci]: nilai },
+	function toggleChannel(key: "pushEnabled" | "emailEnabled", value: boolean) {
+		const current = notifications.data?.preferences ?? { pushEnabled: true, emailEnabled: true };
+		save.mutate(
+			{ ...current, [key]: value },
 			{
 				onError: (error) =>
 					Alert.alert(
@@ -26,66 +26,66 @@ export function PengaturanScreen() {
 		);
 	}
 
-	const pref = notifikasi.data?.preferensi ?? { pushAktif: true, emailAktif: true };
-	const versi = Constants.expoConfig?.version ?? "-";
+	const prefs = notifications.data?.preferences ?? { pushEnabled: true, emailEnabled: true };
+	const version = Constants.expoConfig?.version ?? "-";
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader title="Pengaturan" />
-			{notifikasi.isPending ? (
+			{notifications.isPending ? (
 				<LoadingView label="Memuat pengaturan..." />
-			) : notifikasi.isError || !notifikasi.data ? (
-				<ErrorView message="Gagal memuat pengaturan." onRetry={() => void notifikasi.refetch()} />
+			) : notifications.isError || !notifications.data ? (
+				<ErrorView message="Gagal memuat pengaturan." onRetry={() => void notifications.refetch()} />
 			) : (
 				<ScrollView contentContainerStyle={styles.content}>
-					<View style={styles.bagian}>
-						<Text style={styles.judul}>Notifikasi</Text>
+					<View style={styles.section}>
+						<Text style={styles.heading}>Notifikasi</Text>
 						<View style={styles.card}>
-							<View style={styles.baris}>
-								<View style={styles.teks}>
+							<View style={styles.row}>
+								<View style={styles.text}>
 									<Text style={styles.label}>Push ke HP</Text>
-									<Text style={styles.sub}>Pengajuan masuk & keputusan</Text>
+									<Text style={styles.subtitle}>Pengajuan masuk & keputusan</Text>
 								</View>
 								<Switch
-									value={pref.pushAktif}
-									onValueChange={(v) => alihKanal("pushAktif", v)}
-									disabled={simpan.isPending}
+									value={prefs.pushEnabled}
+									onValueChange={(v) => toggleChannel("pushEnabled", v)}
+									disabled={save.isPending}
 								/>
 							</View>
-							<View style={[styles.baris, styles.batas]}>
-								<View style={styles.teks}>
+							<View style={[styles.row, styles.divider]}>
+								<View style={styles.text}>
 									<Text style={styles.label}>Email</Text>
-									<Text style={styles.sub}>Pengajuan masuk & keputusan</Text>
+									<Text style={styles.subtitle}>Pengajuan masuk & keputusan</Text>
 								</View>
 								<Switch
-									value={pref.emailAktif}
-									onValueChange={(v) => alihKanal("emailAktif", v)}
-									disabled={simpan.isPending}
+									value={prefs.emailEnabled}
+									onValueChange={(v) => toggleChannel("emailEnabled", v)}
+									disabled={save.isPending}
 								/>
 							</View>
 						</View>
 					</View>
 
-					<View style={styles.bagian}>
-						<Text style={styles.judul}>Aplikasi</Text>
+					<View style={styles.section}>
+						<Text style={styles.heading}>Aplikasi</Text>
 						<View style={styles.card}>
-							<View style={styles.baris}>
+							<View style={styles.row}>
 								<Text style={styles.label}>Versi</Text>
-								<Text style={styles.nilai}>{versi}</Text>
+								<Text style={styles.value}>{version}</Text>
 							</View>
-							<View style={[styles.baris, styles.batas]}>
+							<View style={[styles.row, styles.divider]}>
 								<Text style={styles.label}>Server</Text>
-								<Text style={styles.nilai} numberOfLines={1}>
+								<Text style={styles.value} numberOfLines={1}>
 									{appConfig.apiUrl}
 								</Text>
 							</View>
 						</View>
 					</View>
 
-					<View style={styles.bagian}>
-						<Text style={styles.judul}>Bantuan</Text>
+					<View style={styles.section}>
+						<Text style={styles.heading}>Bantuan</Text>
 						<View style={styles.card}>
-							<Text style={styles.bantuan}>
+							<Text style={styles.help}>
 								Kendala login, data salah, atau lupa password? Hubungi HR untuk reset dan verifikasi.
 							</Text>
 						</View>
@@ -98,10 +98,10 @@ export function PengaturanScreen() {
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-	bagian: { gap: spacing.xs },
-	judul: {
+	section: { gap: spacing.xs },
+	heading: {
 		fontSize: fontSize.xs,
 		fontWeight: "700",
 		color: colors.textMuted,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
 		borderColor: colors.border,
 		paddingHorizontal: spacing.md,
 	},
-	baris: {
+	row: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "space-between",
@@ -123,10 +123,10 @@ const styles = StyleSheet.create({
 		paddingVertical: spacing.sm,
 		minHeight: TOUCH_MIN,
 	},
-	batas: { borderTopWidth: 1, borderTopColor: colors.border },
-	teks: { flex: 1, gap: 2 },
+	divider: { borderTopWidth: 1, borderTopColor: colors.border },
+	text: { flex: 1, gap: 2 },
 	label: { fontSize: fontSize.sm, color: colors.text, fontWeight: "600" },
-	sub: { fontSize: fontSize.xs, color: colors.textMuted },
-	nilai: { fontSize: fontSize.sm, color: colors.textMuted, flexShrink: 1 },
-	bantuan: { fontSize: fontSize.sm, color: colors.text, paddingVertical: spacing.md },
+	subtitle: { fontSize: fontSize.xs, color: colors.textMuted },
+	value: { fontSize: fontSize.sm, color: colors.textMuted, flexShrink: 1 },
+	help: { fontSize: fontSize.sm, color: colors.text, paddingVertical: spacing.md },
 });

@@ -1,44 +1,44 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	getNotifikasi,
-	simpanPreferensi,
-	tandaiDibaca,
-	type PreferensiMobile,
+	getNotifications,
+	markAsRead,
+	savePreferences,
+	type MobilePreferences,
 } from "../data/notifikasi-api";
 
-export const notifikasiKeys = {
-	all: ["notifikasi"] as const,
-	daftar: () => [...notifikasiKeys.all, "daftar"] as const,
+export const notificationKeys = {
+	all: ["notifications"] as const,
+	list: () => [...notificationKeys.all, "list"] as const,
 };
 
-/** Daftar + badge belum dibaca + preferensi. */
-export function useNotifikasi() {
+/** List + unread badge + preferences. */
+export function useNotifications() {
 	return useQuery({
-		queryKey: notifikasiKeys.daftar(),
-		queryFn: ({ signal }) => getNotifikasi(false, signal),
+		queryKey: notificationKeys.list(),
+		queryFn: ({ signal }) => getNotifications(false, signal),
 	});
 }
 
-/** Tandai satu/semua dibaca. */
-export function useTandaiDibaca() {
+/** Mark one/all as read. */
+export function useMarkAsRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) => tandaiDibaca(id),
+		mutationFn: (id: string) => markAsRead(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: notifikasiKeys.all });
+			void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
 		},
 	});
 }
 
-/** Simpan preferensi kanal push/email. */
-export function useSimpanPreferensi() {
+/** Save push/email channel preferences. */
+export function useSavePreferences() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (input: PreferensiMobile) => simpanPreferensi(input),
+		mutationFn: (input: MobilePreferences) => savePreferences(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: notifikasiKeys.all });
+			void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
 		},
 	});
 }

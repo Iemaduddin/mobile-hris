@@ -2,33 +2,33 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
-import { SkeletonLayar } from "@/core/widgets/skeleton";
-import { formatTanggal } from "@/core/util/format";
-import { usePengumuman } from "../providers/pengumuman-queries";
+import { ScreenSkeleton } from "@/core/widgets/skeleton";
+import { formatDate } from "@/core/util/format";
+import { useAnnouncements } from "../providers/pengumuman-queries";
 
-/** Pengumuman perusahaan + peristiwa minggu ini (ultah/anniversary). */
+/** Company announcements + this week's events (birthdays/anniversaries). */
 export function PengumumanScreen() {
-	const { data, isPending, isError, isFetching, refetch } = usePengumuman();
+	const { data, isPending, isError, isFetching, refetch } = useAnnouncements();
 
 	if (isPending)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Pengumuman" subtitle="Memuat…" />
-				<SkeletonLayar jumlah={3} judul={false} />
+				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (isError || !data)
 		return (
-			<View style={styles.layar}>
+			<View style={styles.screen}>
 				<ScreenHeader title="Pengumuman" />
 				<ErrorView message="Gagal memuat pengumuman." onRetry={() => void refetch()} />
 			</View>
 		);
 
-	const peristiwa = data.peristiwa;
+	const events = data.events;
 
 	return (
-		<View style={styles.layar}>
+		<View style={styles.screen}>
 			<ScreenHeader
 				title="Pengumuman"
 				subtitle={data.items.length > 0 ? `${data.items.length} info` : undefined}
@@ -45,12 +45,12 @@ export function PengumumanScreen() {
 					/>
 				}
 				ListHeaderComponent={
-					peristiwa.length > 0 ? (
-						<View style={styles.minggu}>
-							<Text style={styles.mingguJudul}>Minggu ini 🎉</Text>
-							{peristiwa.slice(0, 5).map((p) => (
-								<Text key={`${p.jenis}-${p.nomorKaryawan}`} style={styles.mingguBaris}>
-									{p.jenis === "ULTAH" ? "🎂" : "🏅"} {p.namaLengkap} — {p.info}
+					events.length > 0 ? (
+						<View style={styles.week}>
+							<Text style={styles.weekTitle}>Minggu ini 🎉</Text>
+							{events.slice(0, 5).map((p) => (
+								<Text key={`${p.kind}-${p.employeeNumber}`} style={styles.weekRow}>
+									{p.kind === "ULTAH" ? "🎂" : "🏅"} {p.fullName} — {p.info}
 								</Text>
 							))}
 						</View>
@@ -60,11 +60,11 @@ export function PengumumanScreen() {
 				renderItem={({ item }) => (
 					<View style={styles.card}>
 						<View style={styles.cardHead}>
-							<Text style={styles.judul}>{item.judul}</Text>
-							{item.unitNama ? <Text style={styles.unit}>{item.unitNama}</Text> : null}
+							<Text style={styles.title}>{item.title}</Text>
+							{item.unitName ? <Text style={styles.unit}>{item.unitName}</Text> : null}
 						</View>
-						<Text style={styles.isi}>{item.isi}</Text>
-						<Text style={styles.waktu}>{formatTanggal(item.tayangMulai)}</Text>
+						<Text style={styles.body}>{item.body}</Text>
+						<Text style={styles.time}>{formatDate(item.startsAt)}</Text>
 					</View>
 				)}
 				ItemSeparatorComponent={() => <View style={styles.gap} />}
@@ -74,9 +74,9 @@ export function PengumumanScreen() {
 }
 
 const styles = StyleSheet.create({
-	layar: { flex: 1, backgroundColor: colors.background },
+	screen: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
-	minggu: {
+	week: {
 		backgroundColor: colors.warningLight,
 		borderRadius: radius.lg,
 		borderWidth: 1,
@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 		marginBottom: spacing.sm,
 	},
-	mingguJudul: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
-	mingguBaris: { fontSize: fontSize.xs, color: colors.text },
+	weekTitle: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+	weekRow: { fontSize: fontSize.xs, color: colors.text },
 	card: {
 		backgroundColor: colors.surface,
 		borderRadius: radius.lg,
@@ -96,9 +96,9 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 	},
 	cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-	judul: { flex: 1, fontSize: fontSize.md, fontWeight: "700", color: colors.text },
+	title: { flex: 1, fontSize: fontSize.md, fontWeight: "700", color: colors.text },
 	unit: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "700" },
-	isi: { fontSize: fontSize.sm, color: colors.text },
-	waktu: { fontSize: fontSize.xs, color: colors.textMuted },
+	body: { fontSize: fontSize.sm, color: colors.text },
+	time: { fontSize: fontSize.xs, color: colors.textMuted },
 	gap: { height: spacing.sm },
 });

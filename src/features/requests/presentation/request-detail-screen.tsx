@@ -1,125 +1,125 @@
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
-import { formatTanggal } from "@/core/util/format";
+import { formatDate } from "@/core/util/format";
 import { ApiException } from "@/core/network/api-exception";
 import { AppButton } from "@/core/widgets/app-button";
 import { Notice, type NoticeProps } from "@/core/widgets/notice";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { ErrorView, LoadingView } from "@/core/widgets/states";
 import {
-	bisaDiajukan,
-	bisaDibatalkan,
-	labelJenisPengajuan,
-	type AksiPengajuan,
-	type JenisPengajuan,
+	canCancel,
+	canSubmit,
+	getRequestKindLabel,
+	type RequestAction,
+	type RequestKind,
 } from "../models/request";
 import {
-	useAksiPengajuan,
-	useCutiList,
-	useDinasList,
-	useLemburList,
+	useDutyRequests,
+	useLeaveRequests,
+	useOvertimeRequests,
+	useRequestAction,
 	useTimeline,
 } from "../providers/requests-queries";
-import { RequestCard, type KartuPengajuan } from "./request-card";
+import { RequestCard, type RequestCardData } from "./request-card";
 import { ApprovalSteps, StatusTimeline } from "./timeline";
 
-type Baris = { label: string; value: string };
+type Row = { label: string; value: string };
 
-type DetailPengajuan = { kartu: KartuPengajuan; baris: Baris[] };
+type RequestDetail = { card: RequestCardData; rows: Row[] };
 
 /**
- * Detail satu pengajuan + aksi ajukan/batal (PRD mobile Bag. 5.4).
- * Tidak ada endpoint detail tunggal — data diambil dari daftar milik sendiri.
+ * Single request detail + submit/cancel actions (mobile PRD Bag. 5.4).
+ * No single-detail endpoint — data comes from the owned list.
  */
-export function RequestDetailScreen({ id, jenis }: { id: string; jenis: JenisPengajuan }) {
-	const [pesan, setPesan] = useState<NoticeProps | null>(null);
-	const aksi = useAksiPengajuan();
-	const timeline = useTimeline(jenis, id);
+export function RequestDetailScreen({ id, kind }: { id: string; kind: RequestKind }) {
+	const [notice, setNotice] = useState<NoticeProps | null>(null);
+	const action = useRequestAction();
+	const timeline = useTimeline(kind, id);
 
-	const cutiQ = useCutiList();
-	const lemburQ = useLemburList();
-	const dinasQ = useDinasList();
+	const leaveQuery = useLeaveRequests();
+	const overtimeQuery = useOvertimeRequests();
+	const dutyQuery = useDutyRequests();
 
-	const sumber = jenis === "cuti" ? cutiQ : jenis === "lembur" ? lemburQ : dinasQ;
+	const source = kind === "leave" ? leaveQuery : kind === "overtime" ? overtimeQuery : dutyQuery;
 
-	let detail: DetailPengajuan | null = null;
+	let detail: RequestDetail | null = null;
 
-	if (jenis === "cuti") {
-		const x = cutiQ.data?.find((i) => i.id === id);
+	if (kind === "leave") {
+		const x = leaveQuery.data?.find((i) => i.id === id);
 		if (x) {
 			detail = {
-				kartu: {
+				card: {
 					id: x.id,
-					jenis,
+					kind,
 					status: x.status,
-					nomor: x.nomor,
-					judul: x.jenisNama,
-					rentang: `${formatTanggal(x.mulai)} – ${formatTanggal(x.selesai)}`,
-					keterangan: `${x.jumlahHari} hari${x.menggunakanSaldo ? " · memakai saldo" : ""}`,
+					number: x.number,
+					title: x.leaveTypeName,
+					range: `${formatDate(x.startDate)} – ${formatDate(x.endDate)}`,
+					note: `${x.totalDays} hari${x.usesBalance ? " · memakai saldo" : ""}`,
 				},
-				baris: [
-					{ label: "Nomor", value: x.nomor },
-					{ label: "Jenis", value: x.jenisNama },
-					{ label: "Tanggal", value: `${formatTanggal(x.mulai)} – ${formatTanggal(x.selesai)}` },
-					{ label: "Jumlah hari", value: x.jumlahHari },
-					{ label: "Memakai saldo", value: x.menggunakanSaldo ? "Ya" : "Tidak" },
-					{ label: "Pemohon", value: x.karyawanNama },
+				rows: [
+					{ label: "Nomor", value: x.number },
+					{ label: "Jenis", value: x.leaveTypeName },
+					{ label: "Tanggal", value: `${formatDate(x.startDate)} – ${formatDate(x.endDate)}` },
+					{ label: "Jumlah hari", value: x.totalDays },
+					{ label: "Memakai saldo", value: x.usesBalance ? "Ya" : "Tidak" },
+					{ label: "Pemohon", value: x.employeeName },
 				],
 			};
 		}
-	} else if (jenis === "lembur") {
-		const x = lemburQ.data?.find((i) => i.id === id);
+	} else if (kind === "overtime") {
+		const x = overtimeQuery.data?.find((i) => i.id === id);
 		if (x) {
 			detail = {
-				kartu: {
+				card: {
 					id: x.id,
-					jenis,
+					kind,
 					status: x.status,
-					judul: "Lembur",
-					rentang: `${formatTanggal(x.tanggal)} · ${x.jamMulai}–${x.jamSelesai}`,
-					keterangan: `${x.jumlahJam} jam · ${x.alasan}`,
+					title: "Lembur",
+					range: `${formatDate(x.date)} · ${x.startTime}–${x.endTime}`,
+					note: `${x.totalHours} jam · ${x.reason}`,
 				},
-				baris: [
-					{ label: "Tanggal", value: formatTanggal(x.tanggal) },
-					{ label: "Jam", value: `${x.jamMulai} – ${x.jamSelesai}` },
-					{ label: "Jumlah jam", value: x.jumlahJam },
-					{ label: "Alasan", value: x.alasan || "—" },
-					{ label: "Pemohon", value: x.karyawanNama },
+				rows: [
+					{ label: "Tanggal", value: formatDate(x.date) },
+					{ label: "Jam", value: `${x.startTime} – ${x.endTime}` },
+					{ label: "Jumlah jam", value: x.totalHours },
+					{ label: "Alasan", value: x.reason || "—" },
+					{ label: "Pemohon", value: x.employeeName },
 				],
 			};
 		}
 	} else {
-		const x = dinasQ.data?.find((i) => i.id === id);
+		const x = dutyQuery.data?.find((i) => i.id === id);
 		if (x) {
 			detail = {
-				kartu: {
+				card: {
 					id: x.id,
-					jenis,
+					kind,
 					status: x.status,
-					nomor: x.nomor,
-					judul: x.jenis === "WFH" ? "WFH" : "Dinas Luar",
-					rentang: `${formatTanggal(x.mulai)} – ${formatTanggal(x.selesai)}`,
-					keterangan: x.lokasi ?? undefined,
+					number: x.number,
+					title: x.dutyType === "WFH" ? "WFH" : "Dinas Luar",
+					range: `${formatDate(x.startDate)} – ${formatDate(x.endDate)}`,
+					note: x.location ?? undefined,
 				},
-				baris: [
-					{ label: "Nomor", value: x.nomor },
-					{ label: "Jenis", value: x.jenis === "WFH" ? "WFH" : "Dinas Luar" },
-					{ label: "Tanggal", value: `${formatTanggal(x.mulai)} – ${formatTanggal(x.selesai)}` },
-					{ label: "Lokasi", value: x.lokasi || "—" },
-					{ label: "Pemohon", value: x.karyawanNama },
+				rows: [
+					{ label: "Nomor", value: x.number },
+					{ label: "Jenis", value: x.dutyType === "WFH" ? "WFH" : "Dinas Luar" },
+					{ label: "Tanggal", value: `${formatDate(x.startDate)} – ${formatDate(x.endDate)}` },
+					{ label: "Lokasi", value: x.location || "—" },
+					{ label: "Pemohon", value: x.employeeName },
 				],
 			};
 		}
 	}
 
-	async function jalankan(a: AksiPengajuan) {
-		setPesan(null);
+	async function run(a: RequestAction) {
+		setNotice(null);
 		try {
-			const hasil = await aksi.mutateAsync({ jenis, id, aksi: a });
-			setPesan({ tone: "success", title: hasil.message });
+			const result = await action.mutateAsync({ kind, id, action: a });
+			setNotice({ tone: "success", title: result.message });
 		} catch (error) {
-			setPesan({
+			setNotice({
 				tone: "danger",
 				title: "Gagal memproses pengajuan",
 				description: error instanceof ApiException ? error.message : "Terjadi kesalahan.",
@@ -127,38 +127,38 @@ export function RequestDetailScreen({ id, jenis }: { id: string; jenis: JenisPen
 		}
 	}
 
-	function konfirmasiBatal() {
+	function confirmCancel() {
 		Alert.alert("Batalkan pengajuan?", "Pengajuan ini akan ditarik dan tidak diproses lebih lanjut.", [
 			{ text: "Kembali", style: "cancel" },
-			{ text: "Ya, batalkan", style: "destructive", onPress: () => void jalankan("batal") },
+			{ text: "Ya, batalkan", style: "destructive", onPress: () => void run("cancel") },
 		]);
 	}
 
-	if (sumber.isPending) return <LoadingView label="Memuat detail pengajuan..." />;
-	if (sumber.isError && sumber.data === undefined)
-		return <ErrorView message="Gagal memuat detail pengajuan." onRetry={() => void sumber.refetch()} />;
+	if (source.isPending) return <LoadingView label="Memuat detail pengajuan..." />;
+	if (source.isError && source.data === undefined)
+		return <ErrorView message="Gagal memuat detail pengajuan." onRetry={() => void source.refetch()} />;
 
 	if (!detail) {
 		return (
 			<>
-				<ScreenHeader title="Detail Pengajuan" subtitle={labelJenisPengajuan(jenis)} />
-				<ErrorView message="Pengajuan tidak ditemukan di daftar terbaru." onRetry={() => void sumber.refetch()} />
+				<ScreenHeader title="Detail Pengajuan" subtitle={getRequestKindLabel(kind)} />
+				<ErrorView message="Pengajuan tidak ditemukan di daftar terbaru." onRetry={() => void source.refetch()} />
 			</>
 		);
 	}
 
-	const { kartu, baris } = detail;
+	const { card, rows } = detail;
 
 	return (
 		<>
-			<ScreenHeader title="Detail Pengajuan" subtitle={labelJenisPengajuan(jenis)} />
+			<ScreenHeader title="Detail Pengajuan" subtitle={getRequestKindLabel(kind)} />
 			<ScrollView contentContainerStyle={styles.content}>
-				{pesan ? <Notice {...pesan} /> : null}
+				{notice ? <Notice {...notice} /> : null}
 
-				<RequestCard data={kartu} />
+				<RequestCard data={card} />
 
 				<View style={styles.panel}>
-					{baris.map((b) => (
+					{rows.map((b) => (
 						<View key={b.label} style={styles.row}>
 							<Text style={styles.rowLabel}>{b.label}</Text>
 							<Text style={styles.rowValue}>{b.value}</Text>
@@ -167,25 +167,25 @@ export function RequestDetailScreen({ id, jenis }: { id: string; jenis: JenisPen
 				</View>
 
 				<StatusTimeline
-					status={kartu.status}
-					adaApproval={(timeline.data?.items.length ?? 0) > 0}
+					status={card.status}
+					hasApproval={(timeline.data?.items.length ?? 0) > 0}
 				/>
 				{timeline.data ? <ApprovalSteps items={timeline.data.items} /> : null}
 
 				<View style={styles.actions}>
-					{bisaDiajukan(kartu.status) ? (
+					{canSubmit(card.status) ? (
 						<AppButton
 							label="Ajukan Sekarang"
-							loading={aksi.isPending}
-							onPress={() => void jalankan("ajukan")}
+							loading={action.isPending}
+							onPress={() => void run("submit")}
 						/>
 					) : null}
-					{bisaDibatalkan(kartu.status) ? (
+					{canCancel(card.status) ? (
 						<AppButton
 							label="Batalkan Pengajuan"
 							variant="danger"
-							loading={aksi.isPending}
-							onPress={konfirmasiBatal}
+							loading={action.isPending}
+							onPress={confirmCancel}
 						/>
 					) : null}
 				</View>

@@ -1,137 +1,137 @@
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiException } from "@/core/network/api-exception";
-import { ambilPerangkatInfo } from "@/core/device/device-info";
-import { ambilPosisi } from "@/core/location/location-service";
-import { lokasiKerjaSaya } from "@/features/auth/models/session";
+import { getDeviceInfo } from "@/core/device/device-info";
+import { getPosition } from "@/core/location/location-service";
+import { myWorkLocation } from "@/features/auth/models/session";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
-import { catatPresensi, getDetailHari, getRiwayatBulanan, getStatusHariIni } from "../data/attendance-api";
-import type { HasilClock, InputPresensi, TipePresensi } from "../models/attendance";
+import { getDayDetail, getMonthlyHistory, getTodayStatus, recordAttendance } from "../data/attendance-api";
+import type { AttendanceInput, AttendanceEventType, ClockResult } from "../models/attendance";
 
-export const presensiKeys = {
-	all: ["presensi"] as const,
-	status: () => [...presensiKeys.all, "status"] as const,
-	riwayat: (tahun: number, bulan: number) =>
-		[...presensiKeys.all, "riwayat", tahun, bulan] as const,
+export const attendanceKeys = {
+	all: ["attendance"] as const,
+	status: () => [...attendanceKeys.all, "status"] as const,
+	history: (year: number, month: number) =>
+		[...attendanceKeys.all, "history", year, month] as const,
 };
 
-export function useStatusHariIni() {
+export function useTodayStatus() {
 	return useQuery({
-		queryKey: presensiKeys.status(),
-		queryFn: ({ signal }) => getStatusHariIni(signal),
+		queryKey: attendanceKeys.status(),
+		queryFn: ({ signal }) => getTodayStatus(signal),
 	});
 }
 
-export function useRiwayatBulanan(tahun: number, bulan: number) {
+export function useMonthlyHistory(year: number, month: number) {
 	return useQuery({
-		queryKey: presensiKeys.riwayat(tahun, bulan),
-		queryFn: ({ signal }) => getRiwayatBulanan(tahun, bulan, signal),
+		queryKey: attendanceKeys.history(year, month),
+		queryFn: ({ signal }) => getMonthlyHistory(year, month, signal),
 	});
 }
 
-export function useDetailHari(tanggal: string) {
+export function useDayDetail(date: string) {
 	return useQuery({
-		queryKey: [...presensiKeys.all, "hari", tanggal],
-		queryFn: ({ signal }) => getDetailHari(tanggal, signal),
-		enabled: tanggal.length === 10,
+		queryKey: [...attendanceKeys.all, "day", date],
+		queryFn: ({ signal }) => getDayDetail(date, signal),
+		enabled: date.length === 10,
 	});
 }
 
-export type FaseClock = "idle" | "mengambil_lokasi" | "mengirim";
+export type ClockPhase = "idle" | "fetching_location" | "sending";
 
-/** Hasil akhir satu aksi clock-in/out. */
-export type HasilAksi =
+/** Final outcome of one clock-in/out action. */
+export type ClockActionResult =
 	| {
-			status: "tercatat";
-			data: HasilClock;
-			/** Peringatan GPS tidak tersedia (presensi tetap terkirim tanpa koordinat). */
-			peringatanLokasi: string | null;
+			status: "recorded";
+			data: ClockResult;
+			/** GPS-unavailable warning (attendance still sent without coordinates). */
+			locationWarning: string | null;
 	  }
-	| { status: "dibatalkan" }
-	| { status: "gagal"; pesan: string };
+	| { status: "cancelled" }
+	| { status: "failed"; message: string };
 
 type ClockOptions = {
 	/**
-	 * Dipanggil saat perangkat melaporkan GPS simulasi.
-	 * Return `false` untuk membatalkan pengiriman (PRD mobile Bag. 5.3.A but.2).
+	 * Called when the device reports a mocked GPS fix.
+	 * Return `false` to cancel sending (mobile PRD Bag. 5.3.A item 2).
 	 */
-	konfirmasiGpsPalsu: () => Promise<boolean>;
+	confirmMockGps: () => Promise<boolean>;
 };
 
 /**
- * Alur clock-in/out: ambil GPS → deteksi mock → konfirmasi → POST.
- * Presensi selalu diteruskan walau tanpa koordinat (PRD: koordinat opsional);
- * hanya `isMocked`/`diLuarRadius` yang akan ditandai oleh server.
+ * Clock-in/out flow: grab GPS → detect mock → confirm → POST.
+ * Attendance always goes through even without coordinates (PRD: coordinates optional);
+ * only `isMocked`/`isOutsideRadius` get flagged by the server.
  */
 export function useClock() {
 	const queryClient = useQueryClient();
-	const karyawan = useAuthStore((s) => s.karyawan);
-	const [fase, setFase] = useState<FaseClock>("idle");
+	const employee = useAuthStore((s) => s.employee);
+	const [phase, setPhase] = useState<ClockPhase>("idle");
 
 	const mutation = useMutation({
-		mutationFn: (input: InputPresensi) => catatPresensi(input),
+		mutationFn: (input: AttendanceInput) => recordAttendance(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: presensiKeys.all });
+			void queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
 		},
-		onSettled: () => setFase("idle"),
+		onSettled: () => setPhase("idle"),
 	});
 
 	const clock = useCallback(
-		async (tipe: TipePresensi, options: ClockOptions): Promise<HasilAksi> => {
-			setFase("mengambil_lokasi");
-			const hasil = await ambilPosisi();
-			const posisi = hasil.ok ? hasil.posisi : null;
-			const peringatanLokasi = hasil.ok ? null : pesanLokasiTidakTersedia(hasil.reason);
+		async (eventType: AttendanceEventType, options: ClockOptions): Promise<ClockActionResult> => {
+			setPhase("fetching_location");
+			const result = await getPosition();
+			const position = result.ok ? result.position : null;
+			const locationWarning = result.ok ? null : getLocationUnavailableMessage(result.reason);
 
-			if (posisi?.isMocked) {
-				const lanjut = await options.konfirmasiGpsPalsu();
-				if (!lanjut) {
-					setFase("idle");
-					return { status: "dibatalkan" };
+			if (position?.isMocked) {
+				const proceed = await options.confirmMockGps();
+				if (!proceed) {
+					setPhase("idle");
+					return { status: "cancelled" };
 				}
 			}
 
-			setFase("mengirim");
+			setPhase("sending");
 			try {
-				const perangkat = await ambilPerangkatInfo();
-				const lokasi = lokasiKerjaSaya(karyawan);
+				const device = await getDeviceInfo();
+				const workplace = myWorkLocation(employee);
 
 				const data = await mutation.mutateAsync({
-					tipe,
-					deviceId: perangkat.deviceId,
-					deviceName: perangkat.deviceName,
-					platform: perangkat.platform,
-					latitude: posisi?.latitude,
-					longitude: posisi?.longitude,
-					isMocked: posisi?.isMocked ?? false,
-					lokasiKerjaId: lokasi?.id,
+					eventType,
+					deviceId: device.deviceId,
+					deviceName: device.deviceName,
+					platform: device.platform,
+					latitude: position?.latitude,
+					longitude: position?.longitude,
+					isMocked: position?.isMocked ?? false,
+					workLocationId: workplace?.id,
 				});
 
-				return { status: "tercatat", data, peringatanLokasi };
+				return { status: "recorded", data, locationWarning };
 			} catch (error) {
 				return {
-					status: "gagal",
-					pesan: error instanceof ApiException ? error.message : "Gagal mengirim presensi.",
+					status: "failed",
+					message: error instanceof ApiException ? error.message : "Gagal mengirim presensi.",
 				};
 			} finally {
-				setFase("idle");
+				setPhase("idle");
 			}
 		},
-		[karyawan, mutation],
+		[employee, mutation],
 	);
 
-	return { clock, fase, isSending: mutation.isPending, reset: mutation.reset };
+	return { clock, phase, isSending: mutation.isPending, reset: mutation.reset };
 }
 
-function pesanLokasiTidakTersedia(
-	reason: "LAYANAN_NONAKTIF" | "IZIN_DITOLAK" | "TIDAK_TERSEDIA",
+function getLocationUnavailableMessage(
+	reason: "SERVICE_OFF" | "PERMISSION_DENIED" | "UNAVAILABLE",
 ): string {
 	switch (reason) {
-		case "LAYANAN_NONAKTIF":
+		case "SERVICE_OFF":
 			return "Layanan lokasi nonaktif — presensi dikirim tanpa koordinat.";
-		case "IZIN_DITOLAK":
+		case "PERMISSION_DENIED":
 			return "Izin lokasi ditolak — presensi dikirim tanpa koordinat.";
-		case "TIDAK_TERSEDIA":
+		case "UNAVAILABLE":
 			return "Lokasi belum didapatkan — presensi dikirim tanpa koordinat.";
 	}
 }

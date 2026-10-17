@@ -1,8 +1,8 @@
 import { api } from "@/core/network/api-client";
 
-/** Koreksi presensi mandiri mobile — M-ESS-3 (via approval atasan → HR). */
+/** Self-service attendance correction — M-ESS-3 (via lead → HR approval). */
 
-export const TIPE_KOREKSI = [
+export const CORRECTION_TYPES = [
 	"MASUK",
 	"KELUAR",
 	"MULAI_ISTIRAHAT",
@@ -11,35 +11,35 @@ export const TIPE_KOREKSI = [
 	"KEMBALI_KANTOR",
 ] as const;
 
-export type KoreksiSaya = {
+export type MyCorrection = {
 	id: string;
-	tanggal: string;
-	tipe: string;
-	waktuBaru: string;
-	alasan: string;
+	date: string;
+	eventType: string;
+	correctedTime: string;
+	reason: string;
 	status: string;
 };
 
-export type InputKoreksi = {
-	tanggal: string;
-	tipe: string;
-	jam: string;
-	alasan: string;
-	lampiranUrl: string;
+export type CorrectionInput = {
+	date: string;
+	eventType: string;
+	time: string;
+	reason: string;
+	attachmentUrl: string;
 };
 
-export function getKoreksiSaya(signal?: AbortSignal): Promise<{ items: KoreksiSaya[] }> {
-	return api.get<{ items: KoreksiSaya[] }>("/api/v1/koreksi", { signal });
+export function getMyCorrections(signal?: AbortSignal): Promise<{ items: MyCorrection[] }> {
+	return api.get<{ items: MyCorrection[] }>("/api/v1/koreksi", { signal });
 }
 
-export function buatKoreksi(input: InputKoreksi): Promise<{ id: string; message: string }> {
+export function createCorrection(input: CorrectionInput): Promise<{ id: string; message: string }> {
 	return api.post<{ id: string; message: string }>("/api/v1/koreksi", input);
 }
 
-export function ubahStatusKoreksi(id: string, aksi: "ajukan" | "batal"): Promise<{ message: string }> {
-	return api.put<{ message: string }>("/api/v1/koreksi", { id, aksi });
+export function updateCorrectionStatus(id: string, action: "submit" | "cancel"): Promise<{ message: string }> {
+	return api.put<{ message: string }>("/api/v1/koreksi", { id, action });
 }
 
-export function labelTipeKoreksi(tipe: string): string {
-	return tipe.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+export function getCorrectionTypeLabel(eventType: string): string {
+	return eventType.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 }

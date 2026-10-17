@@ -1,4 +1,4 @@
-/** Data sesi hasil login dan `/api/v1/me`. */
+/** Session data from login and `/api/v1/me`. */
 
 export type SessionUser = {
 	id: string;
@@ -7,34 +7,34 @@ export type SessionUser = {
 	role?: string | null;
 };
 
-/** Lokasi kerja penempatan aktif — dipakai untuk pratinjau radius presensi. */
-export type LokasiKerjaSaya = {
+/** Active-placement work site — used for attendance radius previews. */
+export type MyWorkLocation = {
 	id: string;
-	nama: string;
+	name: string;
 	latitude: number | null;
 	longitude: number | null;
-	radiusMeter: number | null;
+	radiusMeters: number | null;
 };
 
-export type PenempatanAktif = {
-	posisi?: { nama: string } | null;
-	unitOrganisasi?: { nama: string } | null;
-	lokasiKerja?: LokasiKerjaSaya | null;
+export type ActivePlacement = {
+	position?: { name: string } | null;
+	orgUnit?: { name: string } | null;
+	workLocation?: MyWorkLocation | null;
 };
 
-export type SessionKaryawan = {
+export type SessionEmployee = {
 	id: string;
-	nomorKaryawan: string;
-	namaLengkap: string;
+	employeeNumber: string;
+	fullName: string;
 	status: string;
-	/** Path berkas foto (dokumen FOTO terakhir) — null bila belum ada. */
-	fotoUrl?: string | null;
-	posisiKaryawan?: PenempatanAktif[];
+	/** Photo file path (latest FOTO document) — null when absent. */
+	photoUrl?: string | null;
+	placements?: ActivePlacement[];
 };
 
 export type MeResponse = {
 	user: SessionUser | null;
-	karyawan: SessionKaryawan | null;
+	employee: SessionEmployee | null;
 };
 
 export type LoginResponse = {
@@ -42,16 +42,16 @@ export type LoginResponse = {
 	user?: SessionUser;
 };
 
-/** Lokasi kerja acuan presensi dari penempatan aktif (`null` bila belum ada). */
-export function lokasiKerjaSaya(karyawan: SessionKaryawan | null): LokasiKerjaSaya | null {
-	return karyawan?.posisiKaryawan?.[0]?.lokasiKerja ?? null;
+/** Reference work site for attendance from the active placement (`null` when absent). */
+export function myWorkLocation(employee: SessionEmployee | null): MyWorkLocation | null {
+	return employee?.placements?.[0]?.workLocation ?? null;
 }
 
-/** Label penempatan aktif, contoh: "Staf · HR & GA". */
-export function labelPenempatan(karyawan: SessionKaryawan | null): string | null {
-	const penempatan = karyawan?.posisiKaryawan?.[0];
-	const posisi = penempatan?.posisi?.nama;
-	const unit = penempatan?.unitOrganisasi?.nama;
-	if (!posisi && !unit) return null;
-	return [posisi, unit].filter(Boolean).join(" · ");
+/** Active placement label, e.g. "Staf · HR & GA". */
+export function getPlacementLabel(employee: SessionEmployee | null): string | null {
+	const placement = employee?.placements?.[0];
+	const position = placement?.position?.name;
+	const unit = placement?.orgUnit?.name;
+	if (!position && !unit) return null;
+	return [position, unit].filter(Boolean).join(" · ");
 }

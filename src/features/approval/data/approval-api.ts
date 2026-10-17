@@ -1,25 +1,25 @@
 import { api } from "@/core/network/api-client";
 
 /**
- * Inbox approval manajer — P4-4 (read-only master/payroll: hanya
- * setuju/tolak + catatan; otorisasi per tahap ditegakkan server).
+ * Manager approval inbox — P4-4 (read-only master/payroll: only
+ * approve/reject + note; per-stage authorization enforced server-side).
  */
 
-export type InboxApproval = {
+export type ApprovalInboxItem = {
 	type: string;
 	id: string;
-	nomor: string;
-	karyawanId: string;
-	karyawanNama: string;
-	nomorKaryawan: string;
-	ringkasan: string;
-	tahap: number;
-	diajukanPada: string | null;
+	number: string;
+	employeeId: string;
+	employeeName: string;
+	employeeNumber: string;
+	summary: string;
+	stage: number;
+	submittedAt: string | null;
 };
 
-export type HasilPutusan = { message: string };
+export type DecisionResult = { message: string };
 
-const LABEL_TIPE: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
 	CUTI: "Cuti/Izin",
 	LEMBUR: "Lembur",
 	DINAS: "Dinas/WFH",
@@ -32,19 +32,19 @@ const LABEL_TIPE: Record<string, string> = {
 	UANGDINAS: "Uang Dinas",
 };
 
-export function labelTipeApproval(type: string): string {
-	return LABEL_TIPE[type] ?? type;
+export function getApprovalTypeLabel(type: string): string {
+	return TYPE_LABELS[type] ?? type;
 }
 
-export function getInboxApproval(signal?: AbortSignal): Promise<{ count: number; items: InboxApproval[] }> {
-	return api.get<{ count: number; items: InboxApproval[] }>("/api/v1/approval", { signal });
+export function getApprovalInbox(signal?: AbortSignal): Promise<{ count: number; items: ApprovalInboxItem[] }> {
+	return api.get<{ count: number; items: ApprovalInboxItem[] }>("/api/v1/approval", { signal });
 }
 
-export function putusanApproval(
+export function decideApproval(
 	type: string,
 	id: string,
-	keputusan: "SETUJU" | "TOLAK",
-	catatan?: string,
-): Promise<HasilPutusan> {
-	return api.post<HasilPutusan>("/api/v1/approval", { type, id, keputusan, catatan });
+	decision: "SETUJU" | "TOLAK",
+	note?: string,
+): Promise<DecisionResult> {
+	return api.post<DecisionResult>("/api/v1/approval", { type, id, decision, note });
 }

@@ -1,147 +1,147 @@
 import { api } from "@/core/network/api-client";
 import type {
-	AksiPengajuan,
-	HasilAksiPengajuan,
-	JenisKetidakhadiran,
-	PengajuanCuti,
-	PengajuanDinas,
-	PengajuanLembur,
-	SaldoCuti,
+	AbsenceType,
+	DutyRequest,
+	LeaveBalance,
+	LeaveRequest,
+	OvertimeRequest,
+	RequestAction,
+	RequestActionResult,
 } from "../models/request";
 
 /**
- * Endpoint pengajuan mobile — PRD mobile Bag. 6 no.10-14.
- * `karyawanId` diambil dari sesi di sisi server, jadi tidak pernah dikirim dari sini.
+ * Mobile request endpoints — mobile PRD Bag. 6 no.10-14.
+ * `karyawanId` is resolved server-side from the session, never sent from here.
  */
 
 function qs(status?: string): string {
 	return status ? `?status=${encodeURIComponent(status)}` : "";
 }
 
-export function getJenisList(signal?: AbortSignal): Promise<{ items: JenisKetidakhadiran[] }> {
-	return api.get<{ items: JenisKetidakhadiran[] }>("/api/v1/leave/types", { signal });
+export function getAbsenceTypes(signal?: AbortSignal): Promise<{ items: AbsenceType[] }> {
+	return api.get<{ items: AbsenceType[] }>("/api/v1/leave/types", { signal });
 }
 
-export function getSaldoCuti(
-	tahun: number,
+export function getLeaveBalance(
+	year: number,
 	signal?: AbortSignal,
-): Promise<{ tahun: number; saldo: SaldoCuti[] }> {
-	return api.get<{ tahun: number; saldo: SaldoCuti[] }>(`/api/v1/leave/balance?tahun=${tahun}`, {
+): Promise<{ year: number; balance: LeaveBalance[] }> {
+	return api.get<{ year: number; balance: LeaveBalance[] }>(`/api/v1/leave/balance?year=${year}`, {
 		signal,
 	});
 }
 
-export function getCutiList(
+export function getLeaveRequests(
 	status?: string,
 	signal?: AbortSignal,
-): Promise<{ items: PengajuanCuti[] }> {
-	return api.get<{ items: PengajuanCuti[] }>(`/api/v1/leave${qs(status)}`, { signal });
+): Promise<{ items: LeaveRequest[] }> {
+	return api.get<{ items: LeaveRequest[] }>(`/api/v1/leave${qs(status)}`, { signal });
 }
 
-export function getLemburList(
+export function getOvertimeRequests(
 	status?: string,
 	signal?: AbortSignal,
-): Promise<{ items: PengajuanLembur[] }> {
-	return api.get<{ items: PengajuanLembur[] }>(`/api/v1/overtime${qs(status)}`, { signal });
+): Promise<{ items: OvertimeRequest[] }> {
+	return api.get<{ items: OvertimeRequest[] }>(`/api/v1/overtime${qs(status)}`, { signal });
 }
 
-export function getDinasList(
+export function getDutyRequests(
 	status?: string,
 	signal?: AbortSignal,
-): Promise<{ items: PengajuanDinas[] }> {
-	return api.get<{ items: PengajuanDinas[] }>(`/api/v1/duty${qs(status)}`, { signal });
+): Promise<{ items: DutyRequest[] }> {
+	return api.get<{ items: DutyRequest[] }>(`/api/v1/duty${qs(status)}`, { signal });
 }
 
-export type InputCuti = {
-	jenisId: number;
-	mulai: string;
-	selesai: string;
-	alasan?: string;
-	alamat?: string;
-	telpDarurat?: string;
-	lampiran?: string;
+export type LeaveInput = {
+	leaveTypeId: number;
+	startDate: string;
+	endDate: string;
+	reason?: string;
+	address?: string;
+	emergencyPhone?: string;
+	attachment?: string;
 };
 
-export type InputLembur = {
-	tanggal: string;
-	jamMulai: string;
-	jamSelesai: string;
-	alasan: string;
+export type OvertimeInput = {
+	date: string;
+	startTime: string;
+	endTime: string;
+	reason: string;
 };
 
-export type InputDinas = {
-	jenis: string;
-	mulai: string;
-	selesai: string;
-	lokasi?: string;
-	keperluan?: string;
-	lampiran?: string;
+export type DutyInput = {
+	dutyType: string;
+	startDate: string;
+	endDate: string;
+	location?: string;
+	purpose?: string;
+	attachment?: string;
 };
 
-export function buatCuti(input: InputCuti): Promise<HasilAksiPengajuan> {
-	return api.post<HasilAksiPengajuan>("/api/v1/leave", input);
+export function createLeave(input: LeaveInput): Promise<RequestActionResult> {
+	return api.post<RequestActionResult>("/api/v1/leave", input);
 }
 
-export function buatLembur(input: InputLembur): Promise<HasilAksiPengajuan> {
-	return api.post<HasilAksiPengajuan>("/api/v1/overtime", input);
+export function createOvertime(input: OvertimeInput): Promise<RequestActionResult> {
+	return api.post<RequestActionResult>("/api/v1/overtime", input);
 }
 
-export function buatDinas(input: InputDinas): Promise<HasilAksiPengajuan> {
-	return api.post<HasilAksiPengajuan>("/api/v1/duty", input);
+export function createDuty(input: DutyInput): Promise<RequestActionResult> {
+	return api.post<RequestActionResult>("/api/v1/duty", input);
 }
 
-export function ubahStatusCuti(id: string, aksi: AksiPengajuan): Promise<{ message: string }> {
-	return api.put<{ message: string }>("/api/v1/leave", { id, aksi });
+export function updateLeaveStatus(id: string, action: RequestAction): Promise<{ message: string }> {
+	return api.put<{ message: string }>("/api/v1/leave", { id, action });
 }
 
-export function ubahStatusLembur(id: string, aksi: AksiPengajuan): Promise<{ message: string }> {
-	return api.put<{ message: string }>("/api/v1/overtime", { id, aksi });
+export function updateOvertimeStatus(id: string, action: RequestAction): Promise<{ message: string }> {
+	return api.put<{ message: string }>("/api/v1/overtime", { id, action });
 }
 
-export function ubahStatusDinas(id: string, aksi: AksiPengajuan): Promise<{ message: string }> {
-	return api.put<{ message: string }>("/api/v1/duty", { id, aksi });
+export function updateDutyStatus(id: string, action: RequestAction): Promise<{ message: string }> {
+	return api.put<{ message: string }>("/api/v1/duty", { id, action });
 }
 
-export type BerkasPilihan = { uri: string; name: string; type: string };
+export type PickedFile = { uri: string; name: string; type: string };
 
-export type HasilUnggah = { path: string; url: string; fileName: string };
+export type UploadResult = { path: string; url: string; fileName: string };
 
-/** `type` memakai kode referensi approval backend: CUTI | LEMBUR | DINAS. */
-export type TahapApproval = {
-	tahap: number;
-	approverNama: string | null;
+/** `type` uses the backend approval reference code: CUTI | LEMBUR | DINAS. */
+export type ApprovalStage = {
+	stage: number;
+	approverName: string | null;
 	approverRole: string | null;
 	status: string;
-	catatan: string | null;
-	diprosesPada: string | null;
+	note: string | null;
+	processedAt: string | null;
 };
 
-export type TimelinePengajuan = {
+export type RequestTimeline = {
 	type: string;
 	id: string;
 	status: string;
-	items: TahapApproval[];
+	items: ApprovalStage[];
 };
 
 export function getTimeline(
 	type: string,
 	id: string,
 	signal?: AbortSignal,
-): Promise<TimelinePengajuan> {
+): Promise<RequestTimeline> {
 	const query = `?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
-	return api.get<TimelinePengajuan>(`/api/v1/approval/timeline${query}`, { signal });
+	return api.get<RequestTimeline>(`/api/v1/approval/timeline${query}`, { signal });
 }
 
 /**
- * Unggah lampiran pengajuan — `ownerType` "pengajuan" (PRD Bag. 6, `/api/files`).
- * Tipe file & ukuran maksimal divalidasi server (jpeg/png/webp/gif/pdf, 10 MB).
+ * Upload a request attachment — `ownerType` "pengajuan" (PRD Bag. 6, `/api/files`).
+ * File type & size are validated server-side (jpeg/png/webp/gif/pdf, 10 MB).
  */
-export function unggahLampiran(file: BerkasPilihan, ownerId: string): Promise<HasilUnggah> {
+export function uploadAttachment(file: PickedFile, ownerId: string): Promise<UploadResult> {
 	const form = new FormData();
 	form.append("ownerType", "pengajuan");
 	form.append("ownerId", ownerId);
 	form.append("subfolder", "lampiran");
-	// React Native memakai {uri,name,type} sebagai bagian file FormData.
+	// React Native passes {uri,name,type} as the file part of FormData.
 	form.append("file", file as unknown as Blob);
-	return api.form<HasilUnggah>("/api/files", form);
+	return api.form<UploadResult>("/api/files", form);
 }

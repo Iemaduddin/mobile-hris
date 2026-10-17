@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { AppButton, ErrorView, LoadingView, Notice, type NoticeProps } from "@/core/widgets";
+import { AppButton, ErrorView, LoadingView, Notice, ScreenHeader, type NoticeProps } from "@/core/widgets";
 import { getPosition, getPositionErrorMessage, type DevicePosition } from "@/core/location/location-service";
 import { measureDistanceMeters, validateRadius } from "@/core/location/geo";
 import { myWorkLocation } from "@/features/auth/models/session";
@@ -98,21 +97,32 @@ export default function AttendanceScreen() {
 		}
 	}, [workplace]);
 
-	if (isLoading) return <LoadingView />;
+	const header = <ScreenHeader title="Presensi" subtitle={formatLongDate(new Date())} hideBack />;
+
+	if (isLoading) {
+		return (
+			<>
+				{header}
+				<LoadingView />
+			</>
+		);
+	}
 	if (isError || !data) {
-		return <ErrorView message="Gagal memuat status presensi." onRetry={() => void refetch()} />;
+		return (
+			<>
+				{header}
+				<ErrorView message="Gagal memuat status presensi." onRetry={() => void refetch()} />
+			</>
+		);
 	}
 
 	const noSchedule = data.status === "TANPA_JADWAL";
 
 	return (
-		<SafeAreaView style={styles.safe} edges={["top"]}>
-			<ScrollView contentContainerStyle={styles.content}>
-				<View style={styles.header}>
-					<Text style={styles.title}>Presensi</Text>
-					<Text style={styles.subtitle}>{formatLongDate(new Date())}</Text>
-				</View>
+		<>
+			{header}
 
+			<ScrollView style={styles.safe} contentContainerStyle={styles.content}>
 				{notice ? <Notice {...notice} /> : null}
 
 				<View style={styles.card}>
@@ -240,7 +250,7 @@ export default function AttendanceScreen() {
 					)}
 				</View>
 			</ScrollView>
-		</SafeAreaView>
+		</>
 	);
 }
 
@@ -291,9 +301,6 @@ function buildResultNotice(result: Extract<ClockActionResult, { status: "recorde
 const styles = StyleSheet.create({
 	safe: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
-	header: { gap: spacing.xs },
-	title: { fontSize: fontSize.xxl, fontWeight: "700", color: colors.text },
-	subtitle: { fontSize: fontSize.sm, color: colors.textMuted },
 
 	card: {
 		backgroundColor: colors.surface,

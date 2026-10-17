@@ -9,14 +9,13 @@ import { useProfile } from "@/features/profile/providers/profile-queries";
 type MenuItem = {
 	label: string;
 	icon: keyof typeof Ionicons.glyphMap;
-	href?: `/schedule` | `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas` | `/onboarding` | `/kalender`;
+	href?: `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas` | `/onboarding` | `/kalender`;
 	soon?: boolean;
 	roles?: string[];
 };
 
-/** Lainnya (PRD mobile Bag. 4): Jadwal, Slip Gaji, Profil, Persetujuan, Pengumuman, Reimbursement, Pengaturan, Logout. */
+/** Lainnya (PRD mobile Bag. 4): Slip Gaji, Profil, Persetujuan, Pengumuman, Reimbursement, Pengaturan, Logout. */
 const MENU: MenuItem[] = [
-	{ label: "Jadwal", icon: "calendar-outline", href: "/schedule" },
 	{ label: "Kalender", icon: "calendar-number-outline", href: "/kalender" },
 	{ label: "Slip Gaji", icon: "wallet-outline", href: "/payslip" },
 	{ label: "Profil Saya", icon: "person-outline", href: "/profile" },

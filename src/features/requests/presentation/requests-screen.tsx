@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { formatDate } from "@/core/util/format";
 import { AppButton } from "@/core/widgets/app-button";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
+import { ScreenHeader } from "@/core/widgets/screen-header";
 import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import {
 	useDutyRequests,
@@ -90,14 +90,24 @@ export function RequestsScreen() {
 
 	const active = kind === "leave" ? leaveQuery : kind === "overtime" ? overtimeQuery : dutyQuery;
 
-	if (active.isPending)
+	const header = <ScreenHeader title="Pengajuan" hideBack />;
+
+	if (active.isPending) {
 		return (
-			<SafeAreaView style={styles.safe} edges={["top"]}>
-				<ScreenSkeleton count={5} />
-			</SafeAreaView>
+			<>
+				{header}
+				<ScreenSkeleton count={5} showTitle={false} />
+			</>
 		);
-	if (active.isError && active.data === undefined)
-		return <ErrorView message="Gagal memuat daftar pengajuan." onRetry={() => void active.refetch()} />;
+	}
+	if (active.isError && active.data === undefined) {
+		return (
+			<>
+				{header}
+				<ErrorView message="Gagal memuat daftar pengajuan." onRetry={() => void active.refetch()} />
+			</>
+		);
+	}
 
 	const cards =
 		kind === "leave"
@@ -110,8 +120,11 @@ export function RequestsScreen() {
 	const remaining = cards.length - visibleCards.length;
 
 	return (
-		<SafeAreaView style={styles.safe} edges={["top"]}>
+		<>
+			{header}
+
 			<FlatList
+				style={styles.safe}
 				data={visibleCards}
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={styles.content}
@@ -124,7 +137,6 @@ export function RequestsScreen() {
 				}
 				ListHeaderComponent={
 					<View style={styles.head}>
-						<Text style={styles.title}>Pengajuan</Text>
 						<BalanceCard rows={balance.data?.balance ?? []} loading={balance.isPending} />
 						<View style={styles.segmented}>
 							{REQUEST_KINDS.map((k) => (
@@ -197,7 +209,7 @@ export function RequestsScreen() {
 					onPress={() => router.push({ pathname: "/requests/new", params: { kind } })}
 				/>
 			</View>
-		</SafeAreaView>
+		</>
 	);
 }
 
@@ -227,7 +239,6 @@ const styles = StyleSheet.create({
 	safe: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.sm, flexGrow: 1 },
 	head: { gap: spacing.md, marginBottom: spacing.sm },
-	title: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
 
 	balanceCard: {
 		backgroundColor: colors.primaryLight,

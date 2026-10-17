@@ -1,3 +1,5 @@
 import ScheduleScreen from "@/features/schedule/presentation/schedule-screen";
 
-export default ScheduleScreen;
+export default function JadwalTab() {
+	return <ScheduleScreen hideBack />;
+}

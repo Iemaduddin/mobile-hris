@@ -19,7 +19,7 @@ const DAY_COUNT = 7;
  * My schedule (mobile PRD Bag. 5.3.D) — read-only.
  * Shift roster + calendar assignments, with overnight-shift markers.
  */
-export default function ScheduleScreen() {
+export default function ScheduleScreen({ hideBack = false }: { hideBack?: boolean }) {
 	const [start, setStart] = useState(() => toDateOnly(new Date()));
 	const end = useMemo(() => addDays(start, DAY_COUNT - 1), [start]);
 
@@ -44,7 +44,7 @@ export default function ScheduleScreen() {
 
 	return (
 		<>
-			<ScreenHeader title="Jadwal Saya" />
+			<ScreenHeader title="Jadwal Saya" hideBack={hideBack} />
 
 			<View style={styles.nav}>
 				<Pressable

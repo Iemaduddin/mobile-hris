@@ -24,7 +24,7 @@ function ikon(bold: IconName, outline: IconName) {
 
 /**
  * Navigasi utama (PRD mobile Bag. 4):
- * Beranda · Presensi · Pengajuan · Notifikasi · Lainnya.
+ * Beranda · Presensi · Pengajuan · Jadwal · Lainnya.
  */
 export default function TabsLayout() {
 	return (
@@ -51,12 +51,12 @@ export default function TabsLayout() {
 				options={{ title: "Pengajuan", tabBarIcon: ikon("document-text", "document-text-outline") }}
 			/>
 			<Tabs.Screen
-				name="notifikasi"
-				options={{ title: "Notifikasi", tabBarIcon: ikon("notifications", "notifications-outline") }}
+				name="schedule"
+				options={{ title: "Jadwal", tabBarIcon: ikon("calendar", "calendar-outline") }}
 			/>
 			<Tabs.Screen
 				name="more"
-				options={{ title: "Lainnya", tabBarIcon: ikon("menu", "menu-outline") }}
+				options={{ title: "Lainnya", tabBarIcon: ikon("apps", "apps-outline") }}
 			/>
 		</Tabs>
 	);

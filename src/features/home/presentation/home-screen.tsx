@@ -25,6 +25,15 @@ import { getPeriodLabel } from "@/features/payslip/models/payslip";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+/** Ucapan selamat sesuai jam perangkat. */
+function getGreeting(now: Date): string {
+	const hour = now.getHours();
+	if (hour >= 4 && hour < 11) return "Selamat pagi";
+	if (hour >= 11 && hour < 15) return "Selamat siang";
+	if (hour >= 15 && hour < 19) return "Selamat sore";
+	return "Selamat malam";
+}
+
 /** Statuses still in flight (undecided). */
 const ACTIVE_STATUSES = new Set(["DRAFT", "DIAJUKAN", "MENUNGGU_APPROVAL"]);
 
@@ -43,6 +52,7 @@ type CardProps = {
 export function HomeScreen() {
 	const user = useAuthStore((s) => s.user);
 	const employee = useAuthStore((s) => s.employee);
+	const signOut = useAuthStore((s) => s.signOut);
 
 	const attendance = useTodayStatus();
 	const balance = useLeaveBalance(CURRENT_YEAR);
@@ -79,6 +89,29 @@ export function HomeScreen() {
 					/>
 				}
 			>
+				<View style={styles.topBar}>
+					<View style={{ flex: 1 }}>
+					<Text style={styles.greeting}>Hi, {employee?.fullName ?? user?.name ?? "-"}</Text>
+					<Text style={styles.greeting}>{getGreeting(new Date())}</Text>
+					</View>
+					<Pressable
+						onPress={() => router.push("/notifikasi")}
+						accessibilityRole="button"
+						accessibilityLabel="Notifikasi"
+						style={styles.iconButton}
+					>
+						<Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
+					</Pressable>
+					<Pressable
+						onPress={() => void signOut()}
+						accessibilityRole="button"
+						accessibilityLabel="Keluar"
+						style={styles.iconButton}
+					>
+						<Ionicons name="log-out-outline" size={22} color={colors.primaryDark} />
+					</Pressable>
+				</View>
+
 			<View style={styles.hero}>
 				<Pressable
 					onPress={() => router.push("/profile")}
@@ -93,8 +126,8 @@ export function HomeScreen() {
 					/>
 				</Pressable>
 				<View style={styles.heroText}>
-					<Text style={styles.name} numberOfLines={1}>
-						{employee?.fullName ?? user?.name ?? "-"}
+					<Text numberOfLines={1}>
+						{employee?.employeeNumber ?? "-"}
 					</Text>
 					<View style={styles.metaRow}>
 						<Ionicons name="calendar-outline" size={13} color={colors.primaryDark} />
@@ -247,6 +280,8 @@ const styles = StyleSheet.create({
 	safe: { flex: 1, backgroundColor: colors.background },
 	content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
 
+	topBar: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+	greeting: { flex: 1, fontSize: fontSize.md, fontWeight: "600", color: colors.text },
 	hero: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -259,6 +294,16 @@ const styles = StyleSheet.create({
 		marginBottom: spacing.sm,
 	},
 	heroText: { flex: 1, gap: 2 },
+	iconButton: {
+		width: TOUCH_MIN,
+		height: TOUCH_MIN,
+		borderRadius: radius.full,
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: colors.surface,
+		borderWidth: 1,
+		borderColor: colors.border,
+	},
 	name: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
 	metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 2 },
 	date: { fontSize: fontSize.xs, color: colors.primaryDark, fontWeight: "600" },

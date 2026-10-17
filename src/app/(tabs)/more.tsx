@@ -9,7 +9,7 @@ import { useProfile } from "@/features/profile/providers/profile-queries";
 type MenuItem = {
 	label: string;
 	icon: keyof typeof Ionicons.glyphMap;
-	href?: `/schedule` | `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas`;
+	href?: `/schedule` | `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas` | `/onboarding` | `/kalender`;
 	soon?: boolean;
 	roles?: string[];
 };
@@ -17,6 +17,7 @@ type MenuItem = {
 /** Lainnya (PRD mobile Bag. 4): Jadwal, Slip Gaji, Profil, Persetujuan, Pengumuman, Reimbursement, Pengaturan, Logout. */
 const MENU: MenuItem[] = [
 	{ label: "Jadwal", icon: "calendar-outline", href: "/schedule" },
+	{ label: "Kalender", icon: "calendar-number-outline", href: "/kalender" },
 	{ label: "Slip Gaji", icon: "wallet-outline", href: "/payslip" },
 	{ label: "Profil Saya", icon: "person-outline", href: "/profile" },
 	{
@@ -32,6 +33,7 @@ const MENU: MenuItem[] = [
 	{ label: "Tukar Shift", icon: "swap-horizontal-outline", href: "/tukar" },
 	{ label: "Update Data", icon: "person-add-outline", href: "/update-data" },
 	{ label: "Uang Dinas", icon: "briefcase-outline", href: "/uangdinas" },
+	{ label: "Onboarding", icon: "clipboard-outline", href: "/onboarding" },
 	{ label: "Pengaturan", icon: "settings-outline", href: "/pengaturan" },
 ];
 

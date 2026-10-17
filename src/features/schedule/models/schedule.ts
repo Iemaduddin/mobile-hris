@@ -24,4 +24,6 @@ export type CalendarAssignment = {
 export type MySchedule = {
 	roster: RosterShift[];
 	assignments: CalendarAssignment[];
+	/** `YYYY-MM-DD` days off (HariLibur / kalender kerja / weekend) for the range. */
+	libur: string[];
 };

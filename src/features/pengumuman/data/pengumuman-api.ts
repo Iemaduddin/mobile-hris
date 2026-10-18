@@ -24,3 +24,11 @@ export type AnnouncementResponse = { items: CompanyAnnouncement[]; events: Upcom
 export function getAnnouncements(signal?: AbortSignal): Promise<AnnouncementResponse> {
 	return api.get<AnnouncementResponse>("/api/v1/pengumuman", { signal });
 }
+
+export type PublishAnnouncementInput = { title: string; body: string };
+export type PublishAnnouncementResult = { id: string; message: string };
+
+/** Terbitkan pengumuman teks (HR/admin) — langsung tayang. */
+export function publishAnnouncement(input: PublishAnnouncementInput): Promise<PublishAnnouncementResult> {
+	return api.post<PublishAnnouncementResult>("/api/v1/pengumuman", input);
+}

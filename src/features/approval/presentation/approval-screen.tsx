@@ -10,6 +10,7 @@ import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { useApprovalDecision, useApprovalInbox } from "../providers/approval-queries";
 import { getApprovalTypeLabel, type ApprovalInboxItem } from "../data/approval-api";
 import { ApiException } from "@/core/network/api-exception";
+import { formatDate, formatIDR } from "@/core/util/format";
 
 /**
  * Manager approvals — P4-4. Approve/reject + note from the phone;
@@ -98,6 +99,16 @@ export function ApprovalScreen() {
 							{item.employeeName} <Text style={styles.number}>({item.employeeNumber})</Text>
 						</Text>
 						<Text style={styles.requestNumber}>{item.number}</Text>
+						{item.date || item.amount !== null ? (
+							<Text style={styles.meta}>
+								{[
+									item.date ? formatDate(item.date) : null,
+									item.amount !== null ? formatIDR(item.amount) : null,
+								]
+									.filter(Boolean)
+									.join(" · ")}
+							</Text>
+						) : null}
 						<Text style={styles.summary}>{item.summary}</Text>
 						<AppTextField
 							label="Catatan (wajib saat menolak)"
@@ -146,6 +157,7 @@ const styles = StyleSheet.create({
 	name: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
 	number: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: "400" },
 	requestNumber: { fontSize: fontSize.xs, color: colors.textMuted },
+	meta: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
 	summary: { fontSize: fontSize.sm, color: colors.text },
 	actions: { flexDirection: "row", gap: spacing.sm },
 	button: { flex: 1 },

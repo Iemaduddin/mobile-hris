@@ -13,6 +13,8 @@ export type ApprovalInboxItem = {
 	employeeName: string;
 	employeeNumber: string;
 	summary: string;
+	date: string | null;
+	amount: number | null;
 	stage: number;
 	submittedAt: string | null;
 };
@@ -30,6 +32,7 @@ const TYPE_LABELS: Record<string, string> = {
 	KOREKSI: "Koreksi Presensi",
 	REIMBURSE: "Reimbursement",
 	UANGDINAS: "Uang Dinas",
+	KASBON: "Kasbon",
 };
 
 export function getApprovalTypeLabel(type: string): string {

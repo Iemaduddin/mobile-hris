@@ -9,7 +9,7 @@ import { useProfile } from "@/features/profile/providers/profile-queries";
 type MenuItem = {
 	label: string;
 	icon: keyof typeof Ionicons.glyphMap;
-	href?: `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas` | `/onboarding` | `/kalender`;
+	href?: `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas` | `/onboarding` | `/kalender` | `/tim` | `/karyawan` | `/pengumuman/baru`;
 	soon?: boolean;
 	roles?: string[];
 };
@@ -23,9 +23,27 @@ const MENU: MenuItem[] = [
 		label: "Persetujuan",
 		icon: "checkmark-circle-outline",
 		href: "/approval",
+		roles: ["MANAJER", "ADMIN_HR", "SUPER_ADMIN", "FINANCE"],
+	},
+	{
+		label: "Tim Saya",
+		icon: "people-outline",
+		href: "/tim",
 		roles: ["MANAJER", "ADMIN_HR", "SUPER_ADMIN"],
 	},
+	{
+		label: "Direktori Karyawan",
+		icon: "id-card-outline",
+		href: "/karyawan",
+		roles: ["ADMIN_HR", "SUPER_ADMIN"],
+	},
 	{ label: "Pengumuman", icon: "megaphone-outline", href: "/pengumuman" },
+	{
+		label: "Terbitkan Pengumuman",
+		icon: "paper-plane-outline",
+		href: "/pengumuman/baru",
+		roles: ["ADMIN_HR", "SUPER_ADMIN"],
+	},
 	{ label: "Reimbursement", icon: "receipt-outline", href: "/reimburse" },
 	{ label: "Kasbon Saya", icon: "cash-outline", href: "/kasbon" },
 	{ label: "Koreksi Presensi", icon: "time-outline", href: "/koreksi" },

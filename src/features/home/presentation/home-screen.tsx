@@ -3,7 +3,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
-import { formatTime, formatDate, getAttendanceStatusLabel, getAttendanceStatusTone } from "@/core/util/format";
+import {
+	formatDate,
+	formatIDR,
+	formatTime,
+	getAttendanceStatusLabel,
+	getAttendanceStatusTone,
+} from "@/core/util/format";
 import { AppButton } from "@/core/widgets/app-button";
 import { AvatarPhoto } from "@/core/widgets/avatar-foto";
 import { Skeleton } from "@/core/widgets/skeleton";
@@ -20,7 +26,6 @@ import {
 	useOvertimeRequests,
 } from "@/features/requests/providers/requests-queries";
 import { usePayslipList } from "@/features/payslip/providers/payslip-queries";
-import { formatIDR } from "@/core/util/format";
 import { getPeriodLabel } from "@/features/payslip/models/payslip";
 
 const CURRENT_YEAR = new Date().getFullYear();

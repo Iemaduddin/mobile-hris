@@ -290,7 +290,10 @@ function TravelAdvanceCard({ data }: { data: MyUangDinas }) {
 							onPress={() =>
 								action.mutate(
 									{ id: data.id, action: "submit" },
-									{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+									{
+										onSuccess: () => Alert.alert("Berhasil", "Pengajuan uang dinas berhasil diajukan."),
+										onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+									},
 								)
 							}
 							loading={busy}
@@ -303,7 +306,10 @@ function TravelAdvanceCard({ data }: { data: MyUangDinas }) {
 							onPress={() =>
 								action.mutate(
 									{ id: data.id, action: "cancel" },
-									{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+									{
+										onSuccess: () => Alert.alert("Berhasil", "Pengajuan uang dinas berhasil dibatalkan."),
+										onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+									},
 								)
 							}
 							loading={busy}
@@ -320,7 +326,10 @@ function TravelAdvanceCard({ data }: { data: MyUangDinas }) {
 							onPress={() =>
 								action.mutate(
 									{ id: data.id, action: "cancel" },
-									{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+									{
+										onSuccess: () => Alert.alert("Berhasil", "Pengajuan uang dinas berhasil dibatalkan."),
+										onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+									},
 								)
 							}
 							loading={busy}

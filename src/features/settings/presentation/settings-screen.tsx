@@ -6,6 +6,7 @@ import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { appConfig } from "@/core/config/app-config";
 import { ScreenHeader } from "@/core/widgets/screen-header";
 import { ErrorView, LoadingView } from "@/core/widgets/states";
+import { Notice } from "@/core/widgets/notice";
 import { useNotifications, useSavePreferences } from "@/features/notifications/providers/notifications-queries";
 import { ApiException } from "@/core/network/api-exception";
 
@@ -40,6 +41,7 @@ export function SettingsScreen() {
 				<ErrorView message="Gagal memuat pengaturan." onRetry={() => void notifications.refetch()} />
 			) : (
 				<ScrollView contentContainerStyle={styles.content}>
+					{save.isSuccess ? <Notice tone="success" title="Preferensi tersimpan" description="Pengaturan notifikasi berhasil diperbarui." /> : null}
 					<View style={styles.section}>
 						<Text style={styles.heading}>Notification</Text>
 						<View style={styles.card}>

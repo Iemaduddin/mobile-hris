@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { AppButton } from "@/core/widgets/app-button";
 import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
+import { Notice, type NoticeProps } from "@/core/widgets/notice";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
 import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
@@ -38,6 +39,7 @@ export function SalaryAdvancesScreen() {
 	const [deductionStart, setDeductionStart] = useState("");
 	const [reason, setReason] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<NoticeProps | null>(null);
 
 	const busy = create.isPending || action.isPending;
 	const amountValue = Number(String(amount).replace(/[^0-9]/g, ""));
@@ -72,16 +74,20 @@ export function SalaryAdvancesScreen() {
 				onSuccess: async (draft) => {
 					try {
 						await action.mutateAsync({ id: draft.id, action: "submit" });
-						Alert.alert("Terkirim", "Pengajuan kasbon diteruskan ke Finance.");
+						setNotice({ tone: "success", title: "Pengajuan terkirim", description: "Pengajuan kasbon diteruskan ke Finance." });
 					} catch (err) {
-						Alert.alert("Draf tersimpan", `Gagal mengajukan otomatis: ${getErrorMessage(err)}`);
+						setNotice({ tone: "warning", title: "Draf tersimpan", description: `Gagal mengajukan otomatis: ${getErrorMessage(err)}` });
 					}
 					setAmount("");
 					setCustomTenor("");
 					setDeductionStart("");
 					setReason("");
 				},
-				onError: (err) => setError(getErrorMessage(err)),
+				onError: (err) => {
+					const message = getErrorMessage(err);
+					setNotice({ tone: "danger", title: "Gagal mengirim pengajuan", description: message });
+					setError(message);
+				},
 			},
 		);
 	}
@@ -119,6 +125,7 @@ export function SalaryAdvancesScreen() {
 				}
 				ListHeaderComponent={
 					<View style={styles.form}>
+						{notice ? <Notice {...notice} /> : null}
 						<Text style={styles.formTitle}>Pengajuan Baru</Text>
 						<Text style={styles.formSubtitle}>Dicicil otomatis potong gaji tiap run.</Text>
 
@@ -181,13 +188,19 @@ export function SalaryAdvancesScreen() {
 						onSubmit={() =>
 							action.mutate(
 								{ id: item.id, action: "submit" },
-								{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+								{
+									onSuccess: () => setNotice({ tone: "success", title: "Pengajuan diajukan", description: "Pengajuan kasbon berhasil diajukan." }),
+									onError: (e) => setNotice({ tone: "danger", title: "Gagal mengajukan", description: getErrorMessage(e) }),
+								},
 							)
 						}
 						onCancel={() =>
 							action.mutate(
 								{ id: item.id, action: "cancel" },
-								{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+								{
+									onSuccess: () => setNotice({ tone: "success", title: "Pengajuan dibatalkan", description: "Pengajuan kasbon berhasil dibatalkan." }),
+									onError: (e) => setNotice({ tone: "danger", title: "Gagal membatalkan", description: getErrorMessage(e) }),
+								},
 							)
 						}
 					/>

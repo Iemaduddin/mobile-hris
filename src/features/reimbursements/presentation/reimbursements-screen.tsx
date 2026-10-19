@@ -13,6 +13,7 @@ import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { AppButton } from "@/core/widgets/app-button";
 import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
+import { Notice, type NoticeProps } from "@/core/widgets/notice";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
 import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
@@ -46,6 +47,7 @@ export function ReimbursementsScreen() {
 	const [file, setFile] = useState<PickedFile | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<NoticeProps | null>(null);
 
 	const busy = submitting || create.isPending || action.isPending;
 
@@ -96,12 +98,13 @@ export function ReimbursementsScreen() {
 				attachmentUrl: uploaded.path,
 			});
 			await action.mutateAsync({ id: draft.id, action: "submit" });
-			Alert.alert("Terkirim", "Klaim diteruskan untuk verifikasi.");
+			setNotice({ tone: "success", title: "Klaim terkirim", description: "Klaim diteruskan untuk verifikasi." });
 			setAmount("");
 			setDescription("");
 			setReceiptDate("");
 			setFile(null);
 		} catch (err) {
+			setNotice({ tone: "danger", title: "Gagal mengirim klaim", description: getErrorMessage(err) });
 			setError(getErrorMessage(err));
 		} finally {
 			setSubmitting(false);
@@ -141,6 +144,7 @@ export function ReimbursementsScreen() {
 				}
 				ListHeaderComponent={
 					<View style={styles.form}>
+						{notice ? <Notice {...notice} /> : null}
 						<Text style={styles.formTitle}>Klaim Baru</Text>
 						<Text style={styles.formSubtitle}>Struk difoto langsung — plafon dicek server.</Text>
 
@@ -232,7 +236,10 @@ export function ReimbursementsScreen() {
 										onPress={() =>
 											action.mutate(
 												{ id: item.id, action: "submit" },
-												{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+												{
+													onSuccess: () => setNotice({ tone: "success", title: "Klaim diajukan", description: "Klaim berhasil diajukan." }),
+													onError: (e) => setNotice({ tone: "danger", title: "Gagal mengajukan", description: getErrorMessage(e) }),
+												},
 											)
 										}
 										loading={action.isPending}

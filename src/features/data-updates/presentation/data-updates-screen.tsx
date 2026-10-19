@@ -395,7 +395,10 @@ export function DataUpdatesScreen() {
 														onPress={() =>
 															action.mutate(
 																{ id: item.id, action: "submit" },
-																{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+																{
+																	onSuccess: () => Alert.alert("Berhasil", "Usulan update data berhasil diajukan."),
+																	onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+																},
 															)
 														}
 														loading={action.isPending}
@@ -408,7 +411,10 @@ export function DataUpdatesScreen() {
 														onPress={() =>
 															action.mutate(
 																{ id: item.id, action: "cancel" },
-																{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+																{
+																	onSuccess: () => Alert.alert("Berhasil", "Usulan update data berhasil dibatalkan."),
+																	onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+																},
 															)
 														}
 														loading={action.isPending}

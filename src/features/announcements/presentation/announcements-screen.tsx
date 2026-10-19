@@ -47,7 +47,7 @@ export function AnnouncementsScreen() {
 				ListHeaderComponent={
 					events.length > 0 ? (
 						<View style={styles.week}>
-							<Text style={styles.weekTitle}>Minggu ini 🎉</Text>
+							<Text style={styles.weekTitle}>Minggu ini</Text>
 							{events.slice(0, 5).map((p) => (
 								<Text key={`${p.kind}-${p.employeeNumber}`} style={styles.weekRow}>
 									{p.kind === "ULTAH" ? "🎂" : "🏅"} {p.fullName} — {p.info}

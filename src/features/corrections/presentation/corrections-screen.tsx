@@ -4,6 +4,7 @@ import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { AppButton } from "@/core/widgets/app-button";
 import { AppTextField } from "@/core/widgets/app-text-field";
 import { ScreenHeader } from "@/core/widgets/screen-header";
+import { Notice, type NoticeProps } from "@/core/widgets/notice";
 import { EmptyView, ErrorView } from "@/core/widgets/states";
 import { ScreenSkeleton } from "@/core/widgets/skeleton";
 import { StatusChip } from "@/core/widgets/status-chip";
@@ -34,6 +35,7 @@ export function CorrectionsScreen() {
 	const [file, setFile] = useState<PickedFile | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<NoticeProps | null>(null);
 
 	const busy = submitting || create.isPending || action.isPending;
 
@@ -86,12 +88,13 @@ export function CorrectionsScreen() {
 				attachmentUrl,
 			});
 			await action.mutateAsync({ id: draft.id, action: "submit" });
-			Alert.alert("Terkirim", "Correction diteruskan ke atasan → HR.");
+			setNotice({ tone: "success", title: "Usulan terkirim", description: "Correction diteruskan ke atasan → HR." });
 			setDate("");
 			setTime("");
 			setReason("");
 			setFile(null);
 		} catch (err) {
+			setNotice({ tone: "danger", title: "Gagal mengirim usulan", description: getErrorMessage(err) });
 			setError(getErrorMessage(err));
 		} finally {
 			setSubmitting(false);
@@ -131,6 +134,7 @@ export function CorrectionsScreen() {
 				}
 				ListHeaderComponent={
 					<View style={styles.form}>
+						{notice ? <Notice {...notice} /> : null}
 						<Text style={styles.formTitle}>Usulan Baru</Text>
 						<Text style={styles.formSubtitle}>Lupa clock-in? Usulkan jam yang benar.</Text>
 
@@ -213,7 +217,10 @@ export function CorrectionsScreen() {
 										onPress={() =>
 											action.mutate(
 												{ id: item.id, action: "submit" },
-												{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+												{
+													onSuccess: () => setNotice({ tone: "success", title: "Usulan diajukan", description: "Correction berhasil diajukan." }),
+													onError: (e) => setNotice({ tone: "danger", title: "Gagal mengajukan", description: getErrorMessage(e) }),
+												},
 											)
 										}
 										loading={action.isPending}
@@ -226,7 +233,10 @@ export function CorrectionsScreen() {
 										onPress={() =>
 											action.mutate(
 												{ id: item.id, action: "cancel" },
-												{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+												{
+													onSuccess: () => setNotice({ tone: "success", title: "Usulan dibatalkan", description: "Correction berhasil dibatalkan." }),
+													onError: (e) => setNotice({ tone: "danger", title: "Gagal membatalkan", description: getErrorMessage(e) }),
+												},
 											)
 										}
 										loading={action.isPending}

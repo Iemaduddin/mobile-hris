@@ -271,7 +271,10 @@ function SwapCard({
 								onPress={() =>
 									action.mutate(
 										{ id: data.id, action: "submit" },
-										{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+										{
+											onSuccess: () => Alert.alert("Berhasil", "Usulan tukar shift berhasil diajukan."),
+											onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+										},
 									)
 								}
 							/>
@@ -285,7 +288,10 @@ function SwapCard({
 							onPress={() =>
 								action.mutate(
 									{ id: data.id, action: "cancel" },
-									{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+									{
+										onSuccess: () => Alert.alert("Berhasil", "Usulan tukar shift berhasil dibatalkan."),
+										onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+									},
 								)
 							}
 						/>
@@ -319,7 +325,10 @@ function SwapCard({
 								onPress={() =>
 									action.mutate(
 										{ id: data.id, action: "approve" },
-										{ onError: (e) => Alert.alert("Gagal", getErrorMessage(e)) },
+										{
+											onSuccess: () => Alert.alert("Berhasil", "Tukar shift berhasil disetujui."),
+											onError: (e) => Alert.alert("Gagal", getErrorMessage(e)),
+										},
 									)
 								}
 							/>

@@ -1,5 +1,7 @@
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import Constants from "expo-constants";
+import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { appConfig } from "@/core/config/app-config";
 import { ScreenHeader } from "@/core/widgets/screen-header";
@@ -83,10 +85,28 @@ export function PengaturanScreen() {
 					</View>
 
 					<View style={styles.section}>
+						<Text style={styles.heading}>Keamanan</Text>
+						<View style={styles.card}>
+							<Pressable
+								onPress={() => router.push("/ubah-sandi")}
+								style={styles.row}
+								accessibilityRole="button"
+								accessibilityLabel="Ubah kata sandi"
+							>
+								<View style={styles.text}>
+									<Text style={styles.label}>Ubah Kata Sandi</Text>
+									<Text style={styles.subtitle}>Ganti sandi akun Anda (minimal 10 karakter)</Text>
+								</View>
+								<Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+							</Pressable>
+						</View>
+					</View>
+
+					<View style={styles.section}>
 						<Text style={styles.heading}>Bantuan</Text>
 						<View style={styles.card}>
 							<Text style={styles.help}>
-								Kendala login, data salah, atau lupa password? Hubungi HR untuk reset dan verifikasi.
+								Kendala login, lupa password, atau data salah? Hubungi HR untuk reset dan verifikasi.
 							</Text>
 						</View>
 					</View>

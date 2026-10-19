@@ -18,6 +18,8 @@ export type TodayEvent = {
 	/** `null` = location not judged (no GPS / site without radius). */
 	isOutsideRadius: boolean | null;
 	isMocked: boolean;
+	/** P6-5 — event dari antrean offline yang tiba setelah kejadian. */
+	terlambatKirim: boolean;
 };
 
 /**
@@ -43,6 +45,10 @@ export type AttendanceInput = {
 	longitude?: number;
 	isMocked?: boolean;
 	workLocationId?: string;
+	/** P6-5 — waktu kejadian dari perangkat (antrean offline / kiriman ulang). */
+	time?: string;
+	/** Catatan sistem (mis. alasan penandaan lokasi mencurigakan). */
+	note?: string;
 };
 
 export type ClockResult = {
@@ -53,6 +59,8 @@ export type ClockResult = {
 	isOutsideRadius: boolean | null;
 	isMocked: boolean;
 	distanceMeters: number | null;
+	/** P6-5 — server menerima presensi jauh setelah waktu kejadian. */
+	terlambatKirim: boolean;
 };
 
 export type DailyRecap = {
@@ -83,6 +91,8 @@ export type DayEvent = {
 	/** `null` = location not judged (no GPS / site without radius). */
 	isOutsideRadius: boolean | null;
 	isMocked: boolean;
+	/** P6-5 — event dari antrean offline yang tiba setelah kejadian. */
+	terlambatKirim: boolean;
 	note: string | null;
 };
 

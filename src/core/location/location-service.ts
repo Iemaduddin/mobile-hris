@@ -14,6 +14,8 @@ export type DevicePosition = {
 	accuracyMeters: number | null;
 	/** `true` when the OS reports a mocked location (Android; always `false` on iOS). */
 	isMocked: boolean;
+	/** Kecepatan laporan GPS (m/detik); `null` bila perangkat tidak melaporkan. */
+	speedMetersPerSecond: number | null;
 	timestamp: number;
 };
 
@@ -49,14 +51,56 @@ export async function requestLocationPermission(request = true): Promise<Permiss
 }
 
 function toPosition(location: Location.LocationObject): DevicePosition {
+	const speed = location.coords.speed;
 	return {
 		latitude: location.coords.latitude,
 		longitude: location.coords.longitude,
 		accuracyMeters: location.coords.accuracy ?? null,
 		// PRD Bag. 10: mock detection relies on Android only (`mocked` is absent on iOS).
 		isMocked: location.mocked === true,
+		// iOS mengirim `-1` saat kecepatan tak tersedia — jangan dianggap data.
+		speedMetersPerSecond: typeof speed === "number" && speed >= 0 ? speed : null,
 		timestamp: location.timestamp,
 	};
+}
+
+/**
+ * P6-5 — deteksi lokasi simulasi. Android memberi flag `mocked`; iOS tidak,
+ * jadi dipakai sinyal sekunder: kecepatan laporan GPS yang mustahil saat
+ * presensi (mis. perangkat berpindah >108 km/jam di titik kantor).
+ * Validasi radius tetap dihitung server (`diLuarRadius`) karena jarak resmi
+ * mengikuti penempatan karyawan, bukan lokasi kerja yang dikirim klien.
+ */
+const SPEED_ANOMALY_MPS = 30;
+
+export type LocationAnomalyReason = "PLATFORM_FLAG" | "SPEED_ANOMALY";
+
+export type LocationAnomaly = {
+	/** `true` = kirim tetap boleh, tapi presensi ditandai mencurigakan. */
+	suspectedMock: boolean;
+	reason: LocationAnomalyReason | null;
+};
+
+export function detectLocationAnomaly(position: DevicePosition | null): LocationAnomaly {
+	if (!position) return { suspectedMock: false, reason: null };
+	if (position.isMocked) return { suspectedMock: true, reason: "PLATFORM_FLAG" };
+	if (
+		position.speedMetersPerSecond != null &&
+		position.speedMetersPerSecond > SPEED_ANOMALY_MPS
+	) {
+		return { suspectedMock: true, reason: "SPEED_ANOMALY" };
+	}
+	return { suspectedMock: false, reason: null };
+}
+
+/** Explanation for the confirmation dialog / location check panel. */
+export function getLocationAnomalyMessage(reason: LocationAnomalyReason): string {
+	switch (reason) {
+		case "PLATFORM_FLAG":
+			return "Perangkat melaporkan lokasi simulasi (mock).";
+		case "SPEED_ANOMALY":
+			return "Anomali kecepatan lokasi: kecepatan terdeteksi tidak wajar untuk presensi (dugaan lokasi simulasi).";
+	}
 }
 
 /** Timeout marker — not an Error, so it never triggers a LogBox warning. */

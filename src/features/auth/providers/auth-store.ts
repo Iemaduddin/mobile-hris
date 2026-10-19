@@ -3,6 +3,7 @@ import { tokenStore } from "@/core/storage/token-store";
 import { queryClient } from "@/core/network/query-client";
 import { ApiException } from "@/core/network/api-exception";
 import { unregisterPush } from "@/core/notifications/push";
+import { attendanceQueue } from "@/features/attendance/data/offline-queue";
 import { getMe, login as loginApi, logout as logoutApi } from "../data/auth-api";
 import type { SessionEmployee, SessionUser } from "../models/session";
 
@@ -66,6 +67,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			// Token may already be invalid — still wipe locally.
 		}
 		await tokenStore.clear();
+		// P6-5: antrean presensi offline milik sesi ini tidak boleh tertinggal
+		// di perangkat (bisa terkirim sebagai karyawan lain di sesi berikutnya).
+		await attendanceQueue.clear();
 		queryClient.clear();
 		set({ status: "signedOut", user: null, employee: null });
 	},

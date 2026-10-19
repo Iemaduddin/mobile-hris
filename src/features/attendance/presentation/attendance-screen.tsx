@@ -1,9 +1,16 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { colors, fontSize, radius, spacing, TOUCH_MIN } from "@/core/theme";
 import { AppButton, ErrorView, LoadingView, Notice, ScreenHeader, type NoticeProps } from "@/core/widgets";
-import { getPosition, getPositionErrorMessage, type DevicePosition } from "@/core/location/location-service";
+import {
+	detectLocationAnomaly,
+	getLocationAnomalyMessage,
+	getPosition,
+	getPositionErrorMessage,
+	type DevicePosition,
+	type LocationAnomaly,
+} from "@/core/location/location-service";
 import { measureDistanceMeters, validateRadius } from "@/core/location/geo";
 import { myWorkLocation } from "@/features/auth/models/session";
 import { useAuthStore } from "@/features/auth/providers/auth-store";
@@ -13,7 +20,12 @@ import {
 	getAttendanceStatusLabel,
 	getPresenceTypeLabel,
 } from "@/core/util/format";
-import { useClock, useTodayStatus, type ClockActionResult } from "../providers/attendance-queries";
+import {
+	useAttendanceQueue,
+	useClock,
+	useTodayStatus,
+	type ClockActionResult,
+} from "../providers/attendance-queries";
 import type { AttendanceEventType } from "../models/attendance";
 
 type CheckResult =
@@ -29,6 +41,7 @@ export default function AttendanceScreen() {
 	const workplace = myWorkLocation(employee);
 	const { data, isLoading, isError, refetch } = useTodayStatus();
 	const { clock, phase, isSending } = useClock();
+	const { pending, isFlushing, flush } = useAttendanceQueue();
 
 	const [notice, setNotice] = useState<NoticeProps | null>(null);
 	const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
@@ -39,12 +52,26 @@ export default function AttendanceScreen() {
 	const hasCheckedOut = events.some((event) => event.eventType === "KELUAR");
 	const isBusy = phase !== "idle" || isSending;
 
+	/** Anomali lokasi pada hasil "Cek lokasi" terakhir (P6-5). */
+	const checkAnomaly = useMemo(
+		() => (checkResult?.ok ? detectLocationAnomaly(checkResult.position) : null),
+		[checkResult],
+	);
+
+	// P6-5: antrean offline dikirim ulang otomatis begitu layar presensi dibuka.
+	const flushedOnce = useRef(false);
+	useEffect(() => {
+		if (flushedOnce.current || pending === 0) return;
+		flushedOnce.current = true;
+		void flush();
+	}, [pending, flush]);
+
 	const confirmMockGps = useCallback(
-		() =>
+		(anomaly: LocationAnomaly) =>
 			new Promise<boolean>((resolve) => {
 				Alert.alert(
-					"Lokasi terdeteksi simulasi",
-					"Lokasi terdeteksi simulasi (mock) — presensi tetap tercatat dan ditandai.",
+					"Lokasi terdeteksi mencurigakan",
+					`${anomaly.reason ? getLocationAnomalyMessage(anomaly.reason) : ""} Presensi tetap dapat dikirim dan akan ditandai untuk ditinjau HR.`,
 					[
 						{ text: "Batal", style: "cancel", onPress: () => resolve(false) },
 						{ text: "Tetap Kirim", onPress: () => resolve(true) },
@@ -61,12 +88,36 @@ export default function AttendanceScreen() {
 
 			if (result.status === "recorded") {
 				setNotice(buildResultNotice(result));
+				// Kiriman sukses = koneksi kembali → coba habiskan antrean lama.
+				void flush();
+			} else if (result.status === "queued") {
+				setNotice({
+					tone: "warning",
+					title: "Presensi disimpan di perangkat",
+					description: `Tidak ada koneksi ke server. ${result.pending} presensi menunggu dan akan dikirim otomatis saat online. Waktu presensi dicatat saat tombol ditekan.`,
+				});
 			} else if (result.status === "failed") {
 				setNotice({ tone: "danger", title: "Gagal mencatat presensi", description: result.message });
 			}
 		},
-		[clock, confirmMockGps],
+		[clock, confirmMockGps, flush],
 	);
+
+	/** Kirim manual antrean offline + laporkan hasilnya. */
+	const handleFlush = useCallback(async () => {
+		const result = await flush();
+		if (result.sent === 0 && !result.error) return;
+
+		setNotice({
+			tone: result.error ? "warning" : "success",
+			title: result.sent > 0 ? `${result.sent} presensi terkirim` : "Antrean belum terkirim",
+			description:
+				result.error ??
+				(result.remaining > 0
+					? `${result.remaining} presensi masih menunggu koneksi.`
+					: "Semua presensi antrean sudah terkirim."),
+		});
+	}, [flush]);
 
 	const checkLocation = useCallback(async () => {
 		setCheckingLocation(true);
@@ -182,9 +233,9 @@ export default function AttendanceScreen() {
 									<Text style={[styles.checkResultText, styles[getRadiusTone(checkResult.isOutsideRadius)]]}>
 										{getRadiusLabel(checkResult.isOutsideRadius)}
 									</Text>
-									{checkResult.position.isMocked ? (
+									{checkAnomaly?.reason ? (
 										<Text style={[styles.checkResultText, styles.textWarning]}>
-											GPS terdeteksi simulasi (mock).
+											{getLocationAnomalyMessage(checkAnomaly.reason)}
 										</Text>
 									) : null}
 								</>
@@ -194,6 +245,32 @@ export default function AttendanceScreen() {
 						</View>
 					) : null}
 				</View>
+
+				{pending > 0 ? (
+					<View style={[styles.card, styles.pendingCard]}>
+						<View style={styles.rowBetween}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.cardLabel}>Antrean offline</Text>
+								<Text style={styles.pendingText}>
+									{pending} presensi belum terkirim — dikirim otomatis saat koneksi kembali.
+								</Text>
+							</View>
+							<Pressable
+								onPress={() => void handleFlush()}
+								disabled={isFlushing}
+								style={styles.checkButton}
+								accessibilityRole="button"
+								accessibilityLabel="Kirim antrean presensi sekarang"
+							>
+								{isFlushing ? (
+									<ActivityIndicator size="small" color={colors.primary} />
+								) : (
+									<Text style={styles.checkLabel}>Kirim sekarang</Text>
+								)}
+							</Pressable>
+						</View>
+					</View>
+				) : null}
 
 				<View style={styles.buttonRow}>
 					<AppButton
@@ -240,6 +317,9 @@ export default function AttendanceScreen() {
 									</Text>
 								</View>
 								<View style={styles.eventFlags}>
+									{event.terlambatKirim ? (
+										<Text style={[styles.flag, styles.flagWarning]}>Terlambat kirim</Text>
+									) : null}
 									{event.isOutsideRadius ? (
 										<Text style={[styles.flag, styles.flagDanger]}>Luar radius</Text>
 									) : null}
@@ -340,6 +420,8 @@ const styles = StyleSheet.create({
 		gap: spacing.xs,
 	},
 	checkResultText: { fontSize: fontSize.sm, color: colors.text },
+	pendingCard: { borderColor: colors.warning, backgroundColor: colors.warningLight },
+	pendingText: { fontSize: fontSize.sm, color: colors.text },
 	textDanger: { color: colors.danger, fontWeight: "600" },
 	textSuccess: { color: colors.success, fontWeight: "600" },
 	textWarning: { color: colors.warning, fontWeight: "600" },

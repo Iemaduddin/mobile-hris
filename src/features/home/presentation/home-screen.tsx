@@ -25,8 +25,8 @@ import {
 	useLeaveRequests,
 	useOvertimeRequests,
 } from "@/features/requests/providers/requests-queries";
-import { usePayslipList } from "@/features/payslip/providers/payslip-queries";
-import { getPeriodLabel } from "@/features/payslip/models/payslip";
+import { usePayslipList } from "@/features/payslips/providers/payslips-queries";
+import { getPeriodLabel } from "@/features/payslips/models/payslips";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -52,7 +52,7 @@ type CardProps = {
 /**
  * ESS Home / Dashboard (mobile PRD Bag. 5.2).
  * Composed from existing endpoints: today's attendance, leave balance,
- * in-flight requests, and the latest payslip — all self-owned.
+ * in-flight requests, and the latest payslips — all self-owned.
  */
 export function HomeScreen() {
 	const user = useAuthStore((s) => s.user);
@@ -100,9 +100,9 @@ export function HomeScreen() {
 					<Text style={styles.greeting}>{getGreeting(new Date())}</Text>
 					</View>
 					<Pressable
-						onPress={() => router.push("/notifikasi")}
+						onPress={() => router.push("/notifications")}
 						accessibilityRole="button"
-						accessibilityLabel="Notifikasi"
+						accessibilityLabel="Notification"
 						style={styles.iconButton}
 					>
 						<Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
@@ -206,7 +206,7 @@ export function HomeScreen() {
 				<Card
 					title="Slip gaji terakhir"
 					subtitle={latestSlip ? getPeriodLabel(latestSlip.period) : undefined}
-					onPress={() => router.push("/payslip")}
+					onPress={() => router.push("/payslips")}
 				>
 					{latestSlip ? (
 						<Text style={styles.slipValue}>{formatIDR(latestSlip.netPay)}</Text>
@@ -219,14 +219,14 @@ export function HomeScreen() {
 
 				<View style={styles.quickActions}>
 					<QuickAction icon="calendar-outline" label="Jadwal" onPress={() => router.push("/schedule")} />
-					<QuickAction icon="document-text-outline" label="Slip Gaji" onPress={() => router.push("/payslip")} />
+					<QuickAction icon="document-text-outline" label="Slip Gaji" onPress={() => router.push("/payslips")} />
 					<QuickAction icon="person-outline" label="Profil" onPress={() => router.push("/profile")} />
 				</View>
 
 				<AppButton
 					label="Lihat Semua Presensi"
 					variant="outline"
-					onPress={() => router.push("/attendance/riwayat")}
+					onPress={() => router.push("/attendance/history")}
 				/>
 			</ScrollView>
 		</SafeAreaView>

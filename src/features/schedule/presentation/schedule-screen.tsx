@@ -124,7 +124,7 @@ export default function ScheduleScreen({ hideBack = false }: { hideBack?: boolea
 						);
 					})}
 
-					<Text style={[styles.section, { marginTop: spacing.lg }]}>Penugasan Kalender</Text>
+					<Text style={[styles.section, { marginTop: spacing.lg }]}>Penugasan Calendar</Text>
 					{data.assignments.length === 0 ? (
 						<Text style={styles.empty}>Tidak ada penugasan kalender.</Text>
 					) : (

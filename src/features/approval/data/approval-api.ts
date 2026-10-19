@@ -28,11 +28,11 @@ const TYPE_LABELS: Record<string, string> = {
 	MUTASI: "Mutasi",
 	RESIGN: "Resign",
 	PROBATION: "Probation",
-	TUKAR_SHIFT: "Tukar Shift",
-	KOREKSI: "Koreksi Presensi",
+	TUKAR_SHIFT: "ShiftSwap Shift",
+	KOREKSI: "Correction Presensi",
 	REIMBURSE: "Reimbursement",
 	UANGDINAS: "Uang Dinas",
-	KASBON: "Kasbon",
+	KASBON: "SalaryAdvance",
 };
 
 export function getApprovalTypeLabel(type: string): string {

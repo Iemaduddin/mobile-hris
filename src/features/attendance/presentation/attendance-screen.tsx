@@ -298,7 +298,7 @@ export default function AttendanceScreen() {
 				<View style={styles.card}>
 					<View style={styles.rowBetween}>
 						<Text style={styles.cardLabel}>Event hari ini</Text>
-						<Link href="/attendance/riwayat" asChild>
+						<Link href="/attendance/history" asChild>
 							<Pressable accessibilityRole="button" hitSlop={8}>
 								<Text style={styles.checkLabel}>Riwayat</Text>
 							</Pressable>

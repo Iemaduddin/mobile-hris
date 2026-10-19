@@ -9,15 +9,15 @@ import { useProfile } from "@/features/profile/providers/profile-queries";
 type MenuItem = {
 	label: string;
 	icon: keyof typeof Ionicons.glyphMap;
-	href?: `/payslip` | `/profile` | `/approval` | `/pengaturan` | `/pengumuman` | `/reimburse` | `/kasbon` | `/koreksi` | `/tukar` | `/update-data` | `/uangdinas` | `/onboarding` | `/kalender` | `/tim` | `/karyawan` | `/pengumuman/baru`;
+	href?: `/payslips` | `/profile` | `/approval` | `/settings` | `/announcements` | `/reimbursements` | `/salary-advances` | `/corrections` | `/shift-swaps` | `/data-updates` | `/business-travel` | `/onboarding` | `/calendar` | `/team` | `/employees` | `/announcements/new`;
 	soon?: boolean;
 	roles?: string[];
 };
 
-/** Lainnya (PRD mobile Bag. 4): Slip Gaji, Profil, Persetujuan, Pengumuman, Reimbursement, Pengaturan, Logout. */
+/** Lainnya (PRD mobile Bag. 4): Slip Gaji, Profil, Persetujuan, Announcement, Reimbursement, Settings, Logout. */
 const MENU: MenuItem[] = [
-	{ label: "Kalender", icon: "calendar-number-outline", href: "/kalender" },
-	{ label: "Slip Gaji", icon: "wallet-outline", href: "/payslip" },
+	{ label: "Calendar", icon: "calendar-number-outline", href: "/calendar" },
+	{ label: "Slip Gaji", icon: "wallet-outline", href: "/payslips" },
 	{ label: "Profil Saya", icon: "person-outline", href: "/profile" },
 	{
 		label: "Persetujuan",
@@ -28,30 +28,30 @@ const MENU: MenuItem[] = [
 	{
 		label: "Tim Saya",
 		icon: "people-outline",
-		href: "/tim",
+		href: "/team",
 		roles: ["MANAJER", "ADMIN_HR", "SUPER_ADMIN"],
 	},
 	{
 		label: "Direktori Karyawan",
 		icon: "id-card-outline",
-		href: "/karyawan",
+		href: "/employees",
 		roles: ["ADMIN_HR", "SUPER_ADMIN"],
 	},
-	{ label: "Pengumuman", icon: "megaphone-outline", href: "/pengumuman" },
+	{ label: "Announcement", icon: "megaphone-outline", href: "/announcements" },
 	{
-		label: "Terbitkan Pengumuman",
+		label: "Terbitkan Announcement",
 		icon: "paper-plane-outline",
-		href: "/pengumuman/baru",
+		href: "/announcements/new",
 		roles: ["ADMIN_HR", "SUPER_ADMIN"],
 	},
-	{ label: "Reimbursement", icon: "receipt-outline", href: "/reimburse" },
-	{ label: "Kasbon Saya", icon: "cash-outline", href: "/kasbon" },
-	{ label: "Koreksi Presensi", icon: "time-outline", href: "/koreksi" },
-	{ label: "Tukar Shift", icon: "swap-horizontal-outline", href: "/tukar" },
-	{ label: "Update Data", icon: "person-add-outline", href: "/update-data" },
-	{ label: "Uang Dinas", icon: "briefcase-outline", href: "/uangdinas" },
+	{ label: "Reimbursement", icon: "receipt-outline", href: "/reimbursements" },
+	{ label: "SalaryAdvance Saya", icon: "cash-outline", href: "/salary-advances" },
+	{ label: "Correction Presensi", icon: "time-outline", href: "/corrections" },
+	{ label: "ShiftSwap Shift", icon: "swap-horizontal-outline", href: "/shift-swaps" },
+	{ label: "Update Data", icon: "person-add-outline", href: "/data-updates" },
+	{ label: "Uang Dinas", icon: "briefcase-outline", href: "/business-travel" },
 	{ label: "Onboarding", icon: "clipboard-outline", href: "/onboarding" },
-	{ label: "Pengaturan", icon: "settings-outline", href: "/pengaturan" },
+	{ label: "Settings", icon: "settings-outline", href: "/settings" },
 ];
 
 export default function MoreRoute() {
@@ -121,4 +121,3 @@ const styles = StyleSheet.create({
 	rowLabel: { flex: 1, fontSize: fontSize.md, color: colors.text },
 	rowSoon: { fontSize: fontSize.xs, color: colors.textMuted },
 });
-

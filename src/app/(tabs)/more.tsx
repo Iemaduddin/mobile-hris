@@ -16,7 +16,7 @@ type MenuItem = {
 
 /** Lainnya (PRD mobile Bag. 4): Slip Gaji, Profil, Persetujuan, Announcement, Reimbursement, Settings, Logout. */
 const MENU: MenuItem[] = [
-	{ label: "Calendar", icon: "calendar-number-outline", href: "/calendar" },
+	{ label: "Kalender", icon: "calendar-number-outline", href: "/calendar" },
 	{ label: "Slip Gaji", icon: "wallet-outline", href: "/payslips" },
 	{ label: "Profil Saya", icon: "person-outline", href: "/profile" },
 	{
@@ -37,21 +37,21 @@ const MENU: MenuItem[] = [
 		href: "/employees",
 		roles: ["ADMIN_HR", "SUPER_ADMIN"],
 	},
-	{ label: "Announcement", icon: "megaphone-outline", href: "/announcements" },
+	{ label: "Pengumuman", icon: "megaphone-outline", href: "/announcements" },
 	{
-		label: "Terbitkan Announcement",
+		label: "Terbitkan Pengumuman",
 		icon: "paper-plane-outline",
 		href: "/announcements/new",
 		roles: ["ADMIN_HR", "SUPER_ADMIN"],
 	},
 	{ label: "Reimbursement", icon: "receipt-outline", href: "/reimbursements" },
-	{ label: "SalaryAdvance Saya", icon: "cash-outline", href: "/salary-advances" },
-	{ label: "Correction Presensi", icon: "time-outline", href: "/corrections" },
-	{ label: "ShiftSwap Shift", icon: "swap-horizontal-outline", href: "/shift-swaps" },
-	{ label: "Update Data", icon: "person-add-outline", href: "/data-updates" },
+	{ label: "Kasbon", icon: "cash-outline", href: "/salary-advances" },
+	{ label: "Koreksi Presensi", icon: "time-outline", href: "/corrections" },
+	{ label: "Tukar Shift", icon: "swap-horizontal-outline", href: "/shift-swaps" },
+	{ label: "Perbarui Data", icon: "person-add-outline", href: "/data-updates" },
 	{ label: "Uang Dinas", icon: "briefcase-outline", href: "/business-travel" },
 	{ label: "Onboarding", icon: "clipboard-outline", href: "/onboarding" },
-	{ label: "Settings", icon: "settings-outline", href: "/settings" },
+	{ label: "Pengaturan", icon: "settings-outline", href: "/settings" },
 ];
 
 export default function MoreRoute() {

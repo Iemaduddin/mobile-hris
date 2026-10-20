@@ -104,14 +104,14 @@ export function CorrectionsScreen() {
 	if (list.isPending)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Correction Presensi" subtitle="Memuat…" />
+				<ScreenHeader title="Koreksi Presensi" subtitle="Memuat…" />
 				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (list.isError && list.data === undefined)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Correction Presensi" />
+				<ScreenHeader title="Koreksi Presensi" />
 				<ErrorView message="Gagal memuat koreksi." onRetry={() => void list.refetch()} />
 			</View>
 		);
@@ -120,7 +120,7 @@ export function CorrectionsScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<ScreenHeader title="Correction Presensi" subtitle={items.length > 0 ? `${items.length} usulan` : undefined} />
+			<ScreenHeader title="Koreksi Presensi" subtitle={items.length > 0 ? `${items.length} usulan` : undefined} />
 			<FlatList
 				data={items}
 				keyExtractor={(item) => item.id}

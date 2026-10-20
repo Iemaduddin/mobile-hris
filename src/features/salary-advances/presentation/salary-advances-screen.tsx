@@ -95,14 +95,14 @@ export function SalaryAdvancesScreen() {
 	if (list.isPending)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="SalaryAdvance Saya" subtitle="Memuat…" />
+				<ScreenHeader title="Kasbon" subtitle="Memuat…" />
 				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (list.isError && list.data === undefined)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="SalaryAdvance Saya" />
+				<ScreenHeader title="Kasbon" />
 				<ErrorView message="Gagal memuat kasbon." onRetry={() => void list.refetch()} />
 			</View>
 		);
@@ -111,7 +111,7 @@ export function SalaryAdvancesScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<ScreenHeader title="SalaryAdvance Saya" subtitle={items.length > 0 ? `${items.length} pengajuan` : undefined} />
+			<ScreenHeader title="Kasbon" subtitle={items.length > 0 ? `${items.length} pengajuan` : undefined} />
 			<FlatList
 				data={items}
 				keyExtractor={(item) => item.id}

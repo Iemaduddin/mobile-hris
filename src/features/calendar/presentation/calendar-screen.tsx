@@ -61,14 +61,14 @@ export function CalendarScreen() {
 	if (loading)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Calendar" subtitle="Memuat…" />
+				<ScreenHeader title="Kalender" subtitle="Memuat…" />
 				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (failed)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Calendar" />
+				<ScreenHeader title="Kalender" />
 				<ErrorView
 					message="Gagal memuat kalender."
 					onRetry={() => {
@@ -81,7 +81,7 @@ export function CalendarScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<ScreenHeader title="Calendar" subtitle="Libur & ulang tahun tim" />
+			<ScreenHeader title="Kalender" subtitle="Libur & ulang tahun tim" />
 			<ScrollView
 				contentContainerStyle={styles.content}
 				refreshControl={
@@ -216,7 +216,7 @@ export function CalendarScreen() {
 					)}
 					{assignments.length > 0 ? (
 						<>
-							<Text style={[styles.cardTitle, styles.mt]}>Calendar kerja aktif</Text>
+							<Text style={[styles.cardTitle, styles.mt]}>Kalender kerja aktif</Text>
 							{assignments.map((a) => (
 								<Text key={`${a.calendar}-${a.start}`} style={styles.meta}>
 									{a.calendar} · {formatDate(a.start)}

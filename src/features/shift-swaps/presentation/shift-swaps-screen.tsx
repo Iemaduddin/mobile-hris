@@ -76,14 +76,14 @@ export function ShiftSwapsScreen() {
 	if (list.isPending)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="ShiftSwap Shift" subtitle="Memuat…" />
+				<ScreenHeader title="Tukar Shift" subtitle="Memuat…" />
 				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (list.isError && list.data === undefined)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="ShiftSwap Shift" />
+				<ScreenHeader title="Tukar Shift" />
 				<ErrorView message="Gagal memuat tukar shift." onRetry={() => void list.refetch()} />
 			</View>
 		);
@@ -93,7 +93,7 @@ export function ShiftSwapsScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<ScreenHeader title="ShiftSwap Shift" subtitle="Tanggal sama · pasangan → HR" />
+			<ScreenHeader title="Tukar Shift" subtitle="Tanggal sama · pasangan → HR" />
 			<FlatList
 				data={[{ key: "form" }]}
 				keyExtractor={(item) => item.key}

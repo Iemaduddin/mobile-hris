@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, fontSize, radius, spacing } from "@/core/theme";
 import { AppButton, AppTextField, Notice, ScreenHeader, type NoticeProps } from "@/core/widgets";
 import { ApiException } from "@/core/network/api-exception";
@@ -23,6 +24,9 @@ export function ChangePasswordScreen() {
 	const [current, setCurrent] = useState("");
 	const [next, setNext] = useState("");
 	const [confirm, setConfirm] = useState("");
+	const [showCurrent, setShowCurrent] = useState(false);
+	const [showNext, setShowNext] = useState(false);
+	const [showConfirm, setShowConfirm] = useState(false);
 	const [errors, setErrors] = useState<FieldErrors>({});
 	const [notice, setNotice] = useState<NoticeProps | null>(null);
 
@@ -78,31 +82,73 @@ export function ChangePasswordScreen() {
 							label="Kata sandi saat ini"
 							value={current}
 							onChangeText={setCurrent}
-							secureTextEntry
+							secureTextEntry={!showCurrent}
 							autoCapitalize="none"
 							autoCorrect={false}
 							textContentType="password"
 							error={errors.current}
+							rightAccessory={
+								<Pressable
+									onPress={() => setShowCurrent((visible) => !visible)}
+									accessibilityRole="button"
+									accessibilityLabel={showCurrent ? "Sembunyikan kata sandi saat ini" : "Tampilkan kata sandi saat ini"}
+									style={styles.eye}
+								>
+									<Ionicons
+										name={showCurrent ? "eye-off-outline" : "eye-outline"}
+										size={22}
+										color={colors.textMuted}
+									/>
+								</Pressable>
+							}
 						/>
 						<AppTextField
 							label="Kata sandi baru"
 							value={next}
 							onChangeText={setNext}
-							secureTextEntry
+							secureTextEntry={!showNext}
 							autoCapitalize="none"
 							autoCorrect={false}
 							textContentType="newPassword"
 							error={errors.next}
+							rightAccessory={
+								<Pressable
+									onPress={() => setShowNext((visible) => !visible)}
+									accessibilityRole="button"
+									accessibilityLabel={showNext ? "Sembunyikan kata sandi baru" : "Tampilkan kata sandi baru"}
+									style={styles.eye}
+								>
+									<Ionicons
+										name={showNext ? "eye-off-outline" : "eye-outline"}
+										size={22}
+										color={colors.textMuted}
+									/>
+								</Pressable>
+							}
 						/>
 						<AppTextField
 							label="Ulangi kata sandi baru"
 							value={confirm}
 							onChangeText={setConfirm}
-							secureTextEntry
+							secureTextEntry={!showConfirm}
 							autoCapitalize="none"
 							autoCorrect={false}
 							textContentType="newPassword"
 							error={errors.confirm}
+							rightAccessory={
+								<Pressable
+									onPress={() => setShowConfirm((visible) => !visible)}
+									accessibilityRole="button"
+									accessibilityLabel={showConfirm ? "Sembunyikan pengulangan kata sandi" : "Tampilkan pengulangan kata sandi"}
+									style={styles.eye}
+								>
+									<Ionicons
+										name={showConfirm ? "eye-off-outline" : "eye-outline"}
+										size={22}
+										color={colors.textMuted}
+									/>
+								</Pressable>
+							}
 						/>
 						<Text style={styles.hint}>
 							Minimal {MIN_PASSWORD_LENGTH} karakter. Setelah diubah, sesi di perangkat lain
@@ -133,4 +179,10 @@ const styles = StyleSheet.create({
 		padding: spacing.lg,
 	},
 	hint: { fontSize: fontSize.xs, color: colors.textMuted },
+	eye: {
+		minWidth: 48,
+		minHeight: 48,
+		alignItems: "center",
+		justifyContent: "center",
+	},
 });

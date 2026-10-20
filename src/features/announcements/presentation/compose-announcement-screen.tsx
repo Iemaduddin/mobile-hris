@@ -39,7 +39,7 @@ export function ComposeAnnouncementScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<ScreenHeader title="Announcement Baru" subtitle="Teks saja · langsung tayang" />
+			<ScreenHeader title="Pengumuman Baru" subtitle="Teks saja · langsung tayang" />
 			<ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 				<AppTextField
 					label="Judul"

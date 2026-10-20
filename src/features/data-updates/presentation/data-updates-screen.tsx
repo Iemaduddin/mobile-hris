@@ -127,14 +127,14 @@ export function DataUpdatesScreen() {
 	if (list.isPending)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Update Data" subtitle="Memuat…" />
+				<ScreenHeader title="Perbarui Data" subtitle="Memuat…" />
 				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (list.isError && list.data === undefined)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Update Data" />
+				<ScreenHeader title="Perbarui Data" />
 				<ErrorView message="Gagal memuat usulan." onRetry={() => void list.refetch()} />
 			</View>
 		);
@@ -144,7 +144,7 @@ export function DataUpdatesScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<ScreenHeader title="Update Data" subtitle={items.length > 0 ? `${items.length} usulan` : undefined} />
+			<ScreenHeader title="Perbarui Data" subtitle={items.length > 0 ? `${items.length} usulan` : undefined} />
 			<FlatList
 				data={[{ key: "form" }]}
 				keyExtractor={(item) => item.key}

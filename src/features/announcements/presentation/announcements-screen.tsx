@@ -13,14 +13,14 @@ export function AnnouncementsScreen() {
 	if (isPending)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Announcement" subtitle="Memuat…" />
+				<ScreenHeader title="Pengumuman" subtitle="Memuat…" />
 				<ScreenSkeleton count={3} showTitle={false} />
 			</View>
 		);
 	if (isError || !data)
 		return (
 			<View style={styles.screen}>
-				<ScreenHeader title="Announcement" />
+				<ScreenHeader title="Pengumuman" />
 				<ErrorView message="Gagal memuat pengumuman." onRetry={() => void refetch()} />
 			</View>
 		);
@@ -30,7 +30,7 @@ export function AnnouncementsScreen() {
 	return (
 		<View style={styles.screen}>
 			<ScreenHeader
-				title="Announcement"
+				title="Pengumuman"
 				subtitle={data.items.length > 0 ? `${data.items.length} info` : undefined}
 			/>
 			<FlatList

@@ -45,6 +45,7 @@ berada di repository <a href="https://github.com/Iemaduddin/hris">HRIS</a>.
  <img src="docs/preview/mobile-presensi.jpg" width="220" alt="Presensi" />
  <img src="docs/preview/mobile-slip-gaji.jpg" width="220" alt="Slip Gaji" />
 </p>
+
 ### Koreksi presensi dan Tukar Shift
 
 <p>
